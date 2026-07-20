@@ -1,11 +1,18 @@
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
-import { getChainsCollection } from "./mongodb";
+import { findChains } from "./db";
 import { rowsToCsv } from "./storage";
 import type { BrowsePath, OptionChainDoc, OptionRow } from "./types";
 
-function filterFromPath(path: BrowsePath): Record<string, string> {
-  const filter: Record<string, string> = {};
+function filterFromPath(path: BrowsePath) {
+  const filter: {
+    exchange?: string;
+    segment?: string;
+    symbol?: string;
+    side?: string;
+    tradeDate?: string;
+    expiryDate?: string;
+  } = {};
   if (path.exchange) filter.exchange = path.exchange;
   if (path.segment) filter.segment = path.segment;
   if (path.symbol) filter.symbol = path.symbol;
@@ -39,8 +46,7 @@ function entryPath(doc: OptionChainDoc): string {
 }
 
 export async function loadDocs(path: BrowsePath): Promise<OptionChainDoc[]> {
-  const col = await getChainsCollection();
-  return col.find(filterFromPath(path)).sort({ tradeDate: -1, expiryDate: 1 }).toArray();
+  return findChains(filterFromPath(path), { sortTradeDateDesc: true });
 }
 
 export async function buildCsvZip(path: BrowsePath): Promise<{

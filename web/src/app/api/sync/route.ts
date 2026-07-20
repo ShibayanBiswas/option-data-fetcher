@@ -4,7 +4,7 @@ import {
   syncLatestAvailable,
   syncTradeDate,
 } from "@/lib/pipeline";
-import { ensureIndexes, getChainsCollection } from "@/lib/mongodb";
+import { ensureSchema, getArchiveStatus } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,31 +26,11 @@ function authorized(request: NextRequest): boolean {
 
 export async function GET() {
   try {
-    await ensureIndexes();
-    const col = await getChainsCollection();
-    const total = await col.estimatedDocumentCount();
-    const latest = await col.find().sort({ tradeDate: -1 }).limit(1).next();
-    const earliest = await col.find().sort({ tradeDate: 1 }).limit(1).next();
-    const exchanges = await col.distinct("exchange");
-    const symbols = await col.distinct("symbol");
-    const tradeDates = await col.distinct("tradeDate");
-    const indexCount = await col.countDocuments({ segment: "INDEX" });
-    const stockCount = await col.countDocuments({ segment: "STOCK" });
-    const otherCount = await col.countDocuments({ segment: "OTHER" });
-
+    await ensureSchema();
+    const status = await getArchiveStatus();
     return NextResponse.json({
       ok: true,
-      totalDocuments: total,
-      latestTradeDate: latest?.tradeDate ?? null,
-      earliestTradeDate: earliest?.tradeDate ?? null,
-      tradingDays: tradeDates.length,
-      exchanges,
-      symbolCount: symbols.length,
-      segments: {
-        INDEX: indexCount,
-        STOCK: stockCount,
-        OTHER: otherCount,
-      },
+      ...status,
     });
   } catch (err) {
     return NextResponse.json(

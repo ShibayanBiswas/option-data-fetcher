@@ -1,4 +1,4 @@
-import { getChainsCollection } from "./mongodb";
+import { distinctValues } from "./db";
 import { hrefForPath, pathFromSegments } from "./storage";
 import { SEGMENT_LABELS, SEGMENT_ORDER } from "./constants";
 import { groupSymbolsBySector, SECTORS, sectorForSymbol } from "./sectors";
@@ -34,7 +34,6 @@ export async function getTreeChildren(
     .map((s) => s.trim())
     .filter(Boolean);
   const path = pathFromSegments(segments);
-  const col = await getChainsCollection();
 
   if (!path.exchange) {
     return (["NSE", "BSE"] as Exchange[]).map((ex) => ({
@@ -49,7 +48,7 @@ export async function getTreeChildren(
 
   if (!path.segment) {
     const present = new Set(
-      (await col.distinct("segment", { exchange: path.exchange })) as Segment[]
+      (await distinctValues("segment", { exchange: path.exchange })) as Segment[]
     );
     return SEGMENT_ORDER.filter((seg) => seg !== "OTHER" || present.has(seg)).map(
       (seg) => ({
@@ -64,12 +63,10 @@ export async function getTreeChildren(
   }
 
   if (!path.symbol) {
-    const symbols = (
-      await col.distinct("symbol", {
-        exchange: path.exchange,
-        segment: path.segment,
-      })
-    ).sort() as string[];
+    const symbols = await distinctValues("symbol", {
+      exchange: path.exchange,
+      segment: path.segment,
+    });
 
     if (path.segment === "STOCK" && !sector) {
       const grouped = groupSymbolsBySector(symbols);
@@ -121,7 +118,7 @@ export async function getTreeChildren(
 
   if (!path.tradeDate) {
     const dates = (
-      await col.distinct("tradeDate", {
+      await distinctValues("tradeDate", {
         exchange: path.exchange,
         segment: path.segment,
         symbol: path.symbol,
@@ -129,7 +126,7 @@ export async function getTreeChildren(
       })
     )
       .sort()
-      .reverse() as string[];
+      .reverse();
 
     return dates.map((tradeDate) => ({
       id: `${path.exchange}-${path.segment}-${path.symbol}-${path.side}-${tradeDate}`,
@@ -149,14 +146,14 @@ export async function getTreeChildren(
 
   if (!path.expiryDate) {
     const expiries = (
-      await col.distinct("expiryDate", {
+      await distinctValues("expiryDate", {
         exchange: path.exchange,
         segment: path.segment,
         symbol: path.symbol,
         side: path.side,
         tradeDate: path.tradeDate,
       })
-    ).sort() as string[];
+    ).sort();
 
     return expiries.map((expiryDate) => ({
       id: `${path.exchange}-${path.segment}-${path.symbol}-${path.side}-${path.tradeDate}-${expiryDate}`,

@@ -20,51 +20,43 @@ export function SiteHeader({
   return (
     <header className="brand-header sticky top-0 z-50 font-ui">
       <div className="desk-gold-rail" />
-      <div className="brand-header-glow mx-auto flex max-w-full items-center justify-between gap-4 px-4 py-3 lg:px-6">
-        <Link href="/" className="flex items-center gap-3 no-underline">
+      <div className="brand-header-inner brand-header-glow">
+        <Link href="/" className="brand-lockup no-underline">
           <Image
             src={theme === "dark" ? "/brand/arwl-logo-white.png" : "/brand/arwl-logo.png"}
-            alt="Option Chain Archive"
-            width={148}
-            height={40}
-            className="h-9 w-auto"
+            alt="Anand Rathi Wealth"
+            width={156}
+            height={42}
+            className="brand-logo-img"
             priority
           />
-          <div className="hidden sm:block font-serif text-lg leading-tight text-[var(--ar-ink)]">
-            Option Chain <span className="shine-text">Archive</span>
-          </div>
+          <span className="brand-lockup-divider" aria-hidden />
+          <span className="brand-title-block">
+            <span className="brand-title-eyebrow">Derivatives desk</span>
+            <span className="brand-title">
+              Option Chain <span className="shine-text">Archive</span>
+            </span>
+          </span>
         </Link>
 
-        <nav className="flex items-center gap-2 text-sm">
-          <Link
-            href="/browse"
-            className="rounded-full border border-[var(--ar-border)] px-3 py-1.5 text-[var(--ar-ink)] no-underline transition hover:border-[var(--ar-gold)]"
-          >
+        <nav className="brand-nav">
+          <Link href="/browse" className="brand-nav-link">
             Browse
           </Link>
-          <Link
-            href="/schema"
-            className="hidden rounded-full border border-[var(--ar-border)] px-3 py-1.5 text-[var(--ar-ink)] no-underline transition hover:border-[var(--ar-gold)] md:inline-flex"
-          >
+          <Link href="/schema" className="brand-nav-link brand-nav-link--md">
             Schema
           </Link>
           {onSearch && (
-            <button
-              type="button"
-              className="btn-ghost inline-flex items-center gap-1.5 !px-3 !py-1.5 text-xs"
-              onClick={onSearch}
-            >
+            <button type="button" className="brand-nav-action" onClick={onSearch}>
               <Search className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Search</span>
-              <kbd className="ml-1 hidden rounded border border-[var(--ar-border)] px-1 text-[10px] lg:inline">
-                ⌘K
-              </kbd>
+              <kbd className="brand-kbd">⌘K</kbd>
             </button>
           )}
           {onSync && (
             <button
               type="button"
-              className="btn-maroon inline-flex items-center gap-1.5 !px-3 !py-1.5 text-xs"
+              className="btn-maroon inline-flex items-center gap-1.5 !px-3.5 !py-2 text-xs shadow-sm"
               onClick={onSync}
               disabled={syncing}
             >
@@ -75,7 +67,7 @@ export function SiteHeader({
           <button
             type="button"
             aria-label="Toggle theme"
-            className="btn-ghost !px-2.5 !py-1.5"
+            className="brand-nav-icon"
             onClick={toggle}
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -83,13 +75,13 @@ export function SiteHeader({
         </nav>
       </div>
       <motion.div
-        className="mx-auto flex max-w-full items-center gap-2 px-4 pb-2 text-[0.7rem] text-[var(--ar-subtle)] lg:px-6"
+        className="brand-subheader"
         initial={{ opacity: 0, y: -6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
+        transition={{ delay: 0.12 }}
       >
         <Database className="h-3.5 w-3.5 text-[var(--ar-gold)]" />
-        NSE and BSE bhavcopy · MongoDB Atlas Mumbai · weekday auto-refresh after market close
+        <span>NSE · BSE bhavcopy · SQLite / Turso · weekday auto-refresh</span>
       </motion.div>
     </header>
   );
@@ -97,9 +89,9 @@ export function SiteHeader({
 
 export function SiteFooter() {
   return (
-    <footer className="mt-10 border-t border-[var(--ar-border)] py-8">
-      <div className="mx-auto flex max-w-full items-center justify-center px-4 font-ui text-sm text-[var(--ar-subtle)] lg:px-6">
-        <span>Option Chain Archive</span>
+    <footer className="desk-footer shrink-0 border-t border-[var(--ar-border)] py-2">
+      <div className="mx-auto flex max-w-full items-center justify-center px-4 font-ui text-xs text-[var(--ar-subtle)] lg:px-6">
+        <span>Option Chain Archive · weekday auto-sync</span>
       </div>
     </footer>
   );

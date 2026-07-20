@@ -13,6 +13,9 @@ import {
   Search,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { DeskFlow, type FlowNode } from "@/components/desk-flow";
+import { HScrollCard, HScrollSection } from "@/components/h-scroll";
+import { SexyCard, SexyKpi } from "@/components/sexy-card";
 
 type Status = {
   ok: boolean;
@@ -29,42 +32,93 @@ const features = [
     icon: FolderTree,
     title: "Desk-grade hierarchy",
     body: "NSE and BSE, then Index, Stocks, or Other, then symbol, CALL or PUT, trade date, and expiry strike ladders.",
+    href: "/schema",
   },
   {
     icon: CloudDownload,
     title: "Zip at every folder",
     body: "Download CSV or Excel zips for any level. Leaf expiry files download as plain CSV or Excel.",
+    href: "/browse",
   },
   {
     icon: Database,
-    title: "MongoDB Atlas sync",
-    body: "Segregated chains persist locally in development and in Atlas Mumbai for production.",
+    title: "SQLite archive sync",
+    body: "Chains persist as local SQLite in development and Turso (libSQL) on Vercel — same SQL, sync-ready.",
+    href: "/schema",
   },
   {
     icon: CalendarClock,
     title: "Weekday auto-refresh",
     body: "Scheduled job pulls the latest bhavcopy after market close. No separate backend host required.",
+    href: "/#pipeline",
   },
   {
     icon: Network,
     title: "Schema on the desk",
-    body: "See the full archive tree, FinInstrmTp segregation rules, and field map on the Schema page.",
+    body: "Interactive maps for hierarchy, FinInstrmTp segregation, and the ingest pipeline.",
+    href: "/schema",
   },
   {
     icon: Search,
     title: "Smart search",
-    body: "Press ⌘K to jump to exchanges, sectors, indices, or any stock underlying in the archive.",
+    body: "Press ⌘K to jump through exchanges and segments — scroll stops at BSE · Other Securities.",
+    href: "/browse",
   },
 ];
 
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="kpi-card">
-      <div className="kpi-card-label">{label}</div>
-      <div className="kpi-card-value">{value}</div>
-    </div>
-  );
-}
+const PIPELINE_STEPS = [
+  {
+    n: "1",
+    title: "Fetch NSE zip and BSE CSV bhavcopy",
+    body: "Pull the latest UDiFF F&O session files from both exchanges after market settlement.",
+  },
+  {
+    n: "2",
+    title: "Segregate Index, Stock, Other · CALL, PUT · expiry",
+    body: "Classify by FinInstrmTp, split CE/PE, group by underlying and expiry, sort strikes.",
+  },
+  {
+    n: "3",
+    title: "Upsert SQLite and expose browse plus download APIs",
+    body: "Write lean chains to SQLite (Turso on Vercel), mirror full CSVs locally, serve the desk UI.",
+  },
+];
+
+const NAV_FLOW: FlowNode[] = [
+  {
+    id: "desk",
+    label: "Option Chain Archive",
+    meta: "Start here",
+    tone: "root",
+    href: "/",
+    children: [
+      {
+        id: "browse",
+        label: "Browse",
+        meta: "Explorer",
+        tone: "accent",
+        href: "/browse",
+        children: [
+          { id: "nse", label: "NSE", tone: "leaf", href: "/browse/NSE" },
+          { id: "bse", label: "BSE", tone: "leaf", href: "/browse/BSE" },
+        ],
+      },
+      {
+        id: "schema",
+        label: "Schema map",
+        meta: "Maps",
+        tone: "accent",
+        href: "/schema",
+      },
+      {
+        id: "sync",
+        label: "Sync Today",
+        meta: "Header action",
+        tone: "leaf",
+      },
+    ],
+  },
+];
 
 function HomeBody() {
   const [status, setStatus] = useState<Status | null>(null);
@@ -98,7 +152,7 @@ function HomeBody() {
               Open Archive <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/schema" className="btn-ghost inline-flex items-center gap-2 no-underline">
-              View Schema
+              Schema map
             </Link>
             <a href="#coverage" className="btn-maroon inline-flex items-center gap-2 no-underline">
               Archive coverage
@@ -120,6 +174,14 @@ function HomeBody() {
         />
       </section>
 
+      <section className="mt-6">
+        <DeskFlow
+          title="Desk navigation map"
+          subtitle="Click a node to jump — sidebar on every page mirrors this tree."
+          roots={NAV_FLOW}
+        />
+      </section>
+
       <section id="coverage" className="mt-6">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
@@ -133,27 +195,32 @@ function HomeBody() {
           </Link>
         </div>
         <div className="kpi-band-grid">
-          <Kpi
+          <SexyKpi label="Start Date" value={status?.earliestTradeDate ?? "—"} delay={0.02} />
+          <SexyKpi label="End Date" value={status?.latestTradeDate ?? "—"} delay={0.05} />
+          <SexyKpi
+            label="Trading days"
+            value={String(status?.tradingDays ?? "—")}
+            delay={0.08}
+          />
+          <SexyKpi
             label="Chain files"
             value={(status?.totalDocuments ?? 0).toLocaleString()}
+            delay={0.11}
           />
-          <Kpi label="Underlyings" value={String(status?.symbolCount ?? "—")} />
-          <Kpi label="Trading days" value={String(status?.tradingDays ?? "—")} />
-          <Kpi
-            label="Date span"
-            value={
-              status?.earliestTradeDate && status?.latestTradeDate
-                ? `${status.earliestTradeDate} → ${status.latestTradeDate}`
-                : "—"
-            }
+          <SexyKpi
+            label="Underlyings"
+            value={String(status?.symbolCount ?? "—")}
+            delay={0.14}
           />
-          <Kpi
+          <SexyKpi
             label="Index files"
             value={(status?.segments?.INDEX ?? 0).toLocaleString()}
+            delay={0.17}
           />
-          <Kpi
+          <SexyKpi
             label="Stock files"
             value={(status?.segments?.STOCK ?? 0).toLocaleString()}
+            delay={0.2}
           />
         </div>
         <p className="mt-3 font-ui text-xs text-[var(--ar-subtle)]">
@@ -163,55 +230,45 @@ function HomeBody() {
         </p>
       </section>
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {features.map((f, i) => (
-          <motion.article
-            key={f.title}
-            initial={{ opacity: 0, y: 18 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.06 }}
-            className="folder-card glass rounded-2xl p-5"
-          >
-            <div className="mb-3 inline-flex rounded-xl bg-gradient-to-br from-[var(--ar-maroon)] to-[var(--ar-gold)] p-2 text-white">
-              <f.icon className="h-4 w-4" />
-            </div>
-            <h2 className="font-serif text-xl text-[var(--ar-ink)]">{f.title}</h2>
-            <p className="mt-2 font-ui text-sm leading-relaxed text-[var(--ar-muted)]">
-              {f.body}
-            </p>
-          </motion.article>
-        ))}
-      </section>
-
-      <section id="pipeline" className="mt-10 glass rounded-3xl p-6 sm:p-10">
-        <p className="label-chip">Pipeline</p>
-        <h2 className="mt-1 font-serif text-3xl text-[var(--ar-ink)]">How the desk builds the book</h2>
-        <p className="mt-2 max-w-3xl font-ui text-sm text-[var(--ar-muted)]">
-          Daily F&amp;O UDiFF bhavcopy is fetched for NSE and BSE, filtered to options,
-          split into CALL and PUT, classified by FinInstrmTp into Index, Stock, or
-          Other, grouped by expiry, sorted by strike, written to local storage in
-          development, and upserted into MongoDB for the web archive.
-        </p>
-        <ol className="mt-6 grid gap-3 font-ui text-sm md:grid-cols-3">
-          {[
-            "1 · Fetch NSE zip and BSE CSV bhavcopy",
-            "2 · Segregate Index, Stock, Other · CALL, PUT · expiry",
-            "3 · Upsert MongoDB and expose browse plus download APIs",
-          ].map((step, i) => (
-            <motion.li
-              key={step}
-              initial={{ opacity: 0, x: -10 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
-              className="rounded-2xl border border-[var(--ar-border)] bg-[var(--ar-panel)] px-4 py-4"
-            >
-              {step}
-            </motion.li>
+      <div className="mt-6">
+        <HScrollSection
+          eyebrow="Capabilities"
+          title="What the desk does"
+          subtitle="Swipe sideways — each card is sized to its content."
+        >
+          {features.map((f, i) => (
+            <HScrollCard key={f.title} size="lg" href={f.href} delay={i * 0.04}>
+              <div className="mb-2 inline-flex rounded-lg border border-[var(--ar-border)] bg-[var(--ar-panel)] p-1.5 text-[var(--ar-ink)]">
+                <f.icon className="h-4 w-4" />
+              </div>
+              <h2 className="font-serif text-lg text-[var(--ar-ink)]">{f.title}</h2>
+              <p className="mt-1.5 max-w-[16rem] font-ui text-sm leading-snug text-[var(--ar-muted)]">
+                {f.body}
+              </p>
+            </HScrollCard>
           ))}
-        </ol>
-        <div className="mt-8 flex flex-wrap gap-3">
+        </HScrollSection>
+      </div>
+
+      <section id="pipeline" className="mt-6">
+        <HScrollSection
+          eyebrow="Pipeline"
+          title="How the desk builds the book"
+          subtitle="Daily F&O UDiFF bhavcopy → segregate → SQLite / Turso → browse & download."
+        >
+          {PIPELINE_STEPS.map((step, i) => (
+            <HScrollCard key={step.n} size="lg" delay={0.05 + i * 0.06}>
+              <div className="pipeline-step-index">{step.n}</div>
+              <h3 className="mt-2 font-serif text-base leading-snug text-[var(--ar-ink)]">
+                {step.title}
+              </h3>
+              <p className="mt-1.5 max-w-[15rem] font-ui text-sm leading-snug text-[var(--ar-muted)]">
+                {step.body}
+              </p>
+            </HScrollCard>
+          ))}
+        </HScrollSection>
+        <div className="mt-4 flex flex-wrap gap-3">
           <Link href="/browse" className="btn-maroon inline-flex items-center gap-2 no-underline">
             Browse NSE and BSE <ArrowRight className="h-4 w-4" />
           </Link>

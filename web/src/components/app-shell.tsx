@@ -3,6 +3,7 @@
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { DeskDialog, type DeskAlertVariant } from "@/components/desk-dialog";
 import { CommandPalette, type SearchHit } from "@/components/command-palette";
+import { BrowseShell } from "@/components/browse-shell";
 import { useCallback, useEffect, useState } from "react";
 
 function variantForStatus(status?: string): DeskAlertVariant {
@@ -101,7 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-mesh font-serif">
+    <div className="desk-app relative flex h-dvh flex-col overflow-hidden bg-mesh font-serif">
       <div className="desk-ambient-orbs" aria-hidden>
         <div className="desk-ambient-orb desk-ambient-orb--gold" />
         <div className="desk-ambient-orb desk-ambient-orb--maroon" />
@@ -111,8 +112,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         syncing={syncing}
         onSearch={() => setSearchOpen(true)}
       />
-      <main className="relative z-10 mx-auto w-full max-w-full flex-1 px-4 py-4 lg:px-6">
-        {children}
+      <main className="relative z-10 flex min-h-0 w-full flex-1 flex-col px-2 pb-2 pt-2 sm:px-3 lg:px-4">
+        <BrowseShell>{children}</BrowseShell>
       </main>
       <SiteFooter />
       <CommandPalette

@@ -4,6 +4,7 @@ import {
   BSE_HEADERS,
   HTTP_HEADERS,
   NSE_FO_URL,
+  PREFERRED_COLUMNS,
   classifySegment,
   sideFromOptnTp,
 } from "./constants";
@@ -12,13 +13,31 @@ import {
   sortRowsByStrike,
   writeLocalChain,
 } from "./storage";
-import { ensureIndexes, getChainsCollection } from "./mongodb";
-import type { Exchange, OptionChainDoc, OptionRow, SyncResult } from "./types";
+import {
+  countChains,
+  ensureSchema,
+  upsertChainDocs,
+} from "./db";
+import type { Exchange, OptionChainDoc, OptionRow, Segment, SyncResult } from "./types";
+
+function leanRows(rows: OptionRow[]): OptionRow[] {
+  return rows.map((row) => {
+    const next: OptionRow = {};
+    for (const key of PREFERRED_COLUMNS) {
+      if (row[key] !== undefined && row[key] !== null && String(row[key]) !== "") {
+        next[key] = row[key];
+      }
+    }
+    // Always keep strike if present under alternate keys
+    if (next.StrkPric == null && row.StrikePrice != null) next.StrkPric = row.StrikePrice;
+    return next;
+  });
+}
 
 async function fetchWithRetries(
   url: string,
   headers: Record<string, string>,
-  retries = 3
+  retries = 5
 ): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -28,6 +47,9 @@ async function fetchWithRetries(
         cache: "no-store",
       });
       if (response.status === 404) return response;
+      if (response.status === 429 || response.status >= 500) {
+        throw new Error(`HTTP ${response.status} for ${url}`);
+      }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status} for ${url}`);
       }
@@ -35,7 +57,7 @@ async function fetchWithRetries(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, attempt * 400));
+        await new Promise((r) => setTimeout(r, attempt * 800));
       }
     }
   }
@@ -89,8 +111,10 @@ async function downloadBseRows(tradeDate: string): Promise<OptionRow[] | "missin
 function groupIntoDocs(
   exchange: Exchange,
   tradeDate: string,
-  rows: OptionRow[]
+  rows: OptionRow[],
+  options: { segments?: Segment[] } = {}
 ): OptionChainDoc[] {
+  const allow = options.segments ? new Set(options.segments) : null;
   const buckets = new Map<string, OptionRow[]>();
 
   for (const row of rows) {
@@ -104,6 +128,8 @@ function groupIntoDocs(
       symbol,
       String(row.FinInstrmTp ?? "")
     );
+    if (allow && !allow.has(segment)) continue;
+
     const key = `${segment}|${symbol}|${side}|${expiryDate}`;
     const list = buckets.get(key) ?? [];
     list.push(row);
@@ -134,46 +160,30 @@ function groupIntoDocs(
 
 export async function upsertDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
-  await ensureIndexes();
-  const col = await getChainsCollection();
+  await ensureSchema();
 
-  const ops = docs.map((doc) => ({
-    updateOne: {
-      filter: {
-        exchange: doc.exchange,
-        segment: doc.segment,
-        symbol: doc.symbol,
-        side: doc.side,
-        tradeDate: doc.tradeDate,
-        expiryDate: doc.expiryDate,
-      },
-      update: { $set: doc },
-      upsert: true,
-    },
-  }));
-
-  const chunkSize = 250;
-  for (let i = 0; i < ops.length; i += chunkSize) {
-    await col.bulkWrite(ops.slice(i, i + chunkSize), { ordered: false });
+  // Local CSV store keeps full rows; SQLite/libSQL stores lean rows.
+  for (const doc of docs) {
+    try {
+      await writeLocalChain(doc);
+    } catch {
+      // Ephemeral hosts may not allow local writes.
+    }
   }
 
-  await Promise.all(
-    docs.map(async (doc) => {
-      try {
-        await writeLocalChain(doc);
-      } catch {
-        // Ephemeral hosts may not allow local writes — MongoDB remains source of truth.
-      }
-    })
-  );
+  const leanDocs = docs.map((doc) => ({
+    ...doc,
+    rows: leanRows(doc.rows),
+  }));
 
+  await upsertChainDocs(leanDocs);
   return docs.length;
 }
 
 export async function syncTradeDate(
   tradeDate: string,
   exchanges: Exchange[] = ["NSE", "BSE"],
-  options: { force?: boolean } = {}
+  options: { force?: boolean; segments?: Segment[] } = {}
 ): Promise<SyncResult> {
   const result: SyncResult = {
     ok: true,
@@ -186,8 +196,19 @@ export async function syncTradeDate(
     message: "",
   };
 
-  const col = await getChainsCollection();
-  const existingCount = await col.countDocuments({ tradeDate });
+  let existingCount = 0;
+  if (options.segments?.length === 1) {
+    existingCount = await countChains({
+      tradeDate,
+      segment: options.segments[0],
+    });
+  } else if (options.segments?.length) {
+    for (const segment of options.segments) {
+      existingCount += await countChains({ tradeDate, segment });
+    }
+  } else {
+    existingCount = await countChains({ tradeDate });
+  }
   result.alreadyHad = existingCount > 0;
 
   if (existingCount > 0 && !options.force) {
@@ -215,7 +236,9 @@ export async function syncTradeDate(
         return tp === "CE" || tp === "PE";
       });
 
-      const docs = groupIntoDocs(exchange, tradeDate, optionRows);
+      const docs = groupIntoDocs(exchange, tradeDate, optionRows, {
+        segments: options.segments,
+      });
       if (docs.length === 0) {
         result.missing += 1;
         continue;
@@ -247,10 +270,28 @@ export async function syncTradeDate(
     result.message = `Partial sync for ${tradeDate}: saved ${result.saved}, missing ${result.missing}, failed ${result.failed}.`;
   } else {
     result.status = "synced";
-    result.message = `Synced ${tradeDate}: ${result.saved.toLocaleString()} chain files stored in MongoDB.`;
+    result.message = `Synced ${tradeDate}: ${result.saved.toLocaleString()} chain files stored in SQLite.`;
   }
 
   return result;
+}
+
+/** Weekday ISO dates (Mon–Fri) as a calendar fallback when Yahoo is unreachable. */
+function weekdayFallback(years = 2): string[] {
+  const end = new Date();
+  const start = new Date();
+  start.setFullYear(end.getFullYear() - years);
+  const out: string[] = [];
+  const d = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
+  const endUtc = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()));
+  while (d <= endUtc) {
+    const day = d.getUTCDay();
+    if (day !== 0 && day !== 6) {
+      out.push(d.toISOString().slice(0, 10));
+    }
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
 }
 
 export async function fetchTradingDates(years = 2): Promise<string[]> {
@@ -262,19 +303,29 @@ export async function fetchTradingDates(years = 2): Promise<string[]> {
   const period2 = Math.floor(end.getTime() / 1000) + 86_400;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1d&period1=${period1}&period2=${period2}`;
 
-  const response = await fetch(url, {
-    headers: HTTP_HEADERS,
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch trading calendar: HTTP ${response.status}`);
-  }
+  try {
+    const response = await fetch(url, {
+      headers: HTTP_HEADERS,
+      cache: "no-store",
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch trading calendar: HTTP ${response.status}`);
+    }
 
-  const payload = await response.json();
-  const timestamps: number[] = payload?.chart?.result?.[0]?.timestamp ?? [];
-  return timestamps
-    .map((ts) => new Date(ts * 1000).toISOString().slice(0, 10))
-    .sort();
+    const payload = await response.json();
+    const timestamps: number[] = payload?.chart?.result?.[0]?.timestamp ?? [];
+    const dates = timestamps
+      .map((ts) => new Date(ts * 1000).toISOString().slice(0, 10))
+      .sort();
+    if (dates.length > 0) return dates;
+  } catch (err) {
+    console.warn(
+      "Trading calendar fetch failed — using weekday fallback:",
+      err instanceof Error ? err.message : err
+    );
+  }
+  return weekdayFallback(years);
 }
 
 export function latestWeekday(from = new Date()): string {

@@ -10,7 +10,7 @@ export function BrowseShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className={`archive-shell ${collapsed ? "archive-shell-collapsed" : ""}`}
+      className={`archive-shell h-full min-h-0 ${collapsed ? "archive-shell-collapsed" : ""}`}
     >
       {mobileOpen && (
         <button
@@ -39,7 +39,7 @@ export function BrowseShell({ children }: { children: React.ReactNode }) {
             {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
           <span className="font-ui text-sm text-[var(--ar-muted)]">
-            Browse archive tree
+            Archive folders
           </span>
         </div>
         <div className="archive-main-scroll">{children}</div>

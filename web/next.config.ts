@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["mongodb", "exceljs"],
+  serverExternalPackages: ["@libsql/client", "exceljs"],
 };
 
 export default nextConfig;

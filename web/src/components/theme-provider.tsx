@@ -11,26 +11,37 @@ import {
 
 type Theme = "light" | "dark";
 
+const STORAGE_KEY = "option-chain-theme";
+
 const ThemeContext = createContext<{
   theme: Theme;
   toggle: () => void;
 }>({ theme: "light", toggle: () => undefined });
 
+function applyTheme(theme: Theme) {
+  document.documentElement.classList.toggle("dark", theme === "dark");
+  document.documentElement.style.colorScheme = theme;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  // Light is the product default; only switch when user explicitly chose dark.
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("option-chain-theme") as Theme | null;
-    const initial = stored === "dark" ? "dark" : "light";
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const initial: Theme = stored === "dark" ? "dark" : "light";
+    if (stored !== "dark" && stored !== "light") {
+      window.localStorage.setItem(STORAGE_KEY, "light");
+    }
     setTheme(initial);
-    document.documentElement.classList.toggle("dark", initial === "dark");
+    applyTheme(initial);
   }, []);
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
-      const next = prev === "light" ? "dark" : "light";
-      document.documentElement.classList.toggle("dark", next === "dark");
-      window.localStorage.setItem("option-chain-theme", next);
+      const next: Theme = prev === "light" ? "dark" : "light";
+      applyTheme(next);
+      window.localStorage.setItem(STORAGE_KEY, next);
       return next;
     });
   }, []);

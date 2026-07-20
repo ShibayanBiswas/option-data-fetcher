@@ -8,11 +8,16 @@
     "start": "next start --port 3000",
     "lint": "eslint",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
-  "reclassify": "tsx --env-file=.env.local scripts/reclassify-segments.ts",
+    "seed:all": "tsx --env-file=.env.local scripts/seed.ts all",
+    "seed:max": "tsx --env-file=.env.local scripts/seed-max.ts",
+    "ingest:local": "tsx --env-file=.env.local scripts/ingest-local.ts",
+    "seed:fresh": "tsx --env-file=.env.local scripts/fresh-seed-all.ts",
+    "reclassify": "tsx --env-file=.env.local scripts/reclassify-segments.ts",
     "audit:segments": "tsx --env-file=.env.local scripts/audit-segments.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@libsql/client": "^0.17.4",
     "archiver": "^8.0.0",
     "exceljs": "^4.4.0",
     "framer-motion": "^12.42.2",

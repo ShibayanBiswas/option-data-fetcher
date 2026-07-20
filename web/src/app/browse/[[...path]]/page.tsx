@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
-import { BrowseShell } from "@/components/browse-shell";
 import { BrowseExplorer } from "@/components/browse-explorer";
 
 export default async function BrowsePage({
@@ -20,9 +19,7 @@ export default async function BrowsePage({
           </div>
         }
       >
-        <BrowseShell>
-          <BrowseExplorer initialPath={initialPath} />
-        </BrowseShell>
+        <BrowseExplorer initialPath={initialPath} />
       </Suspense>
     </AppShell>
   );

@@ -28,7 +28,7 @@ export function CommandPalette({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return hits.slice(0, 40);
+    if (!q) return hits;
     return hits
       .filter(
         (h) =>

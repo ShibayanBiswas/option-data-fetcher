@@ -21,6 +21,7 @@ import {
   PanelLeft,
 } from "lucide-react";
 import type { TreeNode } from "@/lib/tree";
+import { sectorForSymbol } from "@/lib/sectors";
 
 type Cache = Record<string, TreeNode[]>;
 
@@ -120,7 +121,8 @@ function TreeBranch({
           className="archive-tree-link"
           onClick={() => {
             onNavigate?.();
-            if (node.hasChildren) {
+            // Auto-open folders only — never auto-open trade-date folders (file leaves inside)
+            if (node.hasChildren && node.kind !== "tradeDate" && node.kind !== "expiry") {
               setOpenMap((s) => ({ ...s, [key]: true }));
             }
           }}
@@ -225,7 +227,8 @@ export function ArchiveSidebar({
     };
   }, []);
 
-  // Auto-expand ancestors for the active browse path
+  // Default: open NSE/BSE → Index Options + Stock Options (not daily folders).
+  // Deep links also open the active symbol/side/sector chain — never trade-date leaves.
   useEffect(() => {
     let cancelled = false;
     async function expandPath() {
@@ -233,33 +236,42 @@ export function ArchiveSidebar({
       const nextOpen: Record<string, boolean> = {};
 
       await ensureChildren("");
+      const rootKids = cacheRef.current[cacheKey("")] ?? [];
 
-      // Walk path and expand each level
-      for (let i = 0; i < parts.length; i++) {
+      for (const ex of rootKids) {
+        if (ex.kind !== "exchange") continue;
+        nextOpen[nodeKey(ex)] = true;
+        await ensureChildren(ex.treePath);
+        const segs = cacheRef.current[cacheKey(ex.treePath)] ?? [];
+        for (const seg of segs) {
+          if (seg.kind !== "segment") continue;
+          nextOpen[nodeKey(seg)] = true;
+          await ensureChildren(seg.treePath);
+        }
+      }
+
+      // Walk active path through side only (index 0..3) — skip tradeDate + expiry
+      const folderDepth = Math.min(parts.length, 4);
+      for (let i = 1; i < folderDepth; i++) {
         const parentPath = parts.slice(0, i).join("/");
         await ensureChildren(parentPath);
 
-        if (i === 0) nextOpen[parts[0]] = true;
-        else if (i === 1) nextOpen[`${parts[0]}-${parts[1]}`] = true;
-        else if (i === 2) {
-          // If STOCK and we have a sector, the symbol sits under a sector folder
-          if (parts[1] === "STOCK" && sector) {
+        if (i === 1) {
+          nextOpen[`${parts[0]}-${parts[1]}`] = true;
+        } else if (i === 2) {
+          if (parts[1] === "STOCK") {
+            const symSector = sector ?? sectorForSymbol(parts[2]);
             nextOpen[`${parts[0]}-STOCK`] = true;
-            nextOpen[`${parts[0]}/STOCK::sector::${sector}`] = true;
+            nextOpen[`${parts[0]}/STOCK::sector::${symSector}`] = true;
             await ensureChildren(`${parts[0]}/STOCK`);
-            await ensureChildren(`${parts[0]}/STOCK`, sector);
+            await ensureChildren(`${parts[0]}/STOCK`, symSector);
           }
           nextOpen[`${parts[0]}-${parts[1]}-${parts[2]}`] = true;
         } else if (i === 3) {
           nextOpen[`${parts[0]}-${parts[1]}-${parts[2]}-${parts[3]}`] = true;
-        } else if (i === 4) {
-          nextOpen[
-            `${parts[0]}-${parts[1]}-${parts[2]}-${parts[3]}-${parts[4]}`
-          ] = true;
         }
       }
 
-      // Sector browse page (no symbol yet)
       if (sector && parts.length === 2 && parts[1] === "STOCK") {
         nextOpen[parts[0]] = true;
         nextOpen[`${parts[0]}-STOCK`] = true;
@@ -268,9 +280,7 @@ export function ArchiveSidebar({
         await ensureChildren(`${parts[0]}/STOCK`, sector);
       }
 
-      if (!cancelled) {
-        setOpenMap((s) => ({ ...s, ...nextOpen }));
-      }
+      if (!cancelled) setOpenMap(nextOpen);
     }
     void expandPath();
     return () => {

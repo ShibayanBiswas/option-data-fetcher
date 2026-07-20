@@ -1,4 +1,4 @@
-import { getChainsCollection } from "./mongodb";
+import { distinctValues, findChains } from "./db";
 import { hrefForPath, readLocalChain } from "./storage";
 import { PREFERRED_COLUMNS, SEGMENT_LABELS, SEGMENT_ORDER } from "./constants";
 import { groupSymbolsBySector, SECTORS, sectorForSymbol } from "./sectors";
@@ -22,7 +22,10 @@ function levelOf(path: BrowsePath): BreadcrumbLevel {
   return "root";
 }
 
-function breadcrumbsFor(path: BrowsePath): { label: string; href: string }[] {
+function breadcrumbsFor(
+  path: BrowsePath,
+  activeSector?: string | null
+): { label: string; href: string }[] {
   const crumbs: { label: string; href: string }[] = [
     { label: "Exchanges", href: "/browse" },
   ];
@@ -31,9 +34,22 @@ function breadcrumbsFor(path: BrowsePath): { label: string; href: string }[] {
   }
   if (path.exchange && path.segment) {
     crumbs.push({
-      label: path.segment,
+      label: SEGMENT_LABELS[path.segment],
       href: hrefForPath({ exchange: path.exchange, segment: path.segment }),
     });
+  }
+  // Sector crumb: from symbol ancestry, or from ?sector= on the STOCK segment page
+  if (path.exchange && path.segment === "STOCK") {
+    const sector =
+      (path.symbol ? sectorForSymbol(path.symbol) : null) ||
+      activeSector?.trim() ||
+      null;
+    if (sector) {
+      crumbs.push({
+        label: sector,
+        href: `/browse/${path.exchange}/STOCK?sector=${encodeURIComponent(sector)}`,
+      });
+    }
   }
   if (path.exchange && path.segment && path.symbol) {
     crumbs.push({
@@ -96,11 +112,10 @@ export async function browse(
   options: { sector?: string | null } = {}
 ): Promise<BrowseResponse> {
   const level = levelOf(path);
-  const col = await getChainsCollection();
-  const crumbs = breadcrumbsFor(path);
+  const crumbs = breadcrumbsFor(path, options.sector);
 
   if (level === "root") {
-    const exchanges = await col.distinct("exchange");
+    const exchanges = await distinctValues("exchange");
     const children: BrowseChild[] = (["NSE", "BSE"] as const).map((ex) => ({
       id: ex,
       label: ex,
@@ -122,7 +137,7 @@ export async function browse(
 
   if (level === "exchange" && path.exchange) {
     const present = new Set(
-      (await col.distinct("segment", { exchange: path.exchange })) as Segment[]
+      (await distinctValues("segment", { exchange: path.exchange })) as Segment[]
     );
     // Always surface INDEX + STOCK; include OTHER only when data exists.
     const segmentsToShow = SEGMENT_ORDER.filter(
@@ -132,14 +147,14 @@ export async function browse(
       id: seg,
       label: SEGMENT_LABELS[seg],
       href: hrefForPath({ exchange: path.exchange, segment: seg }),
-      meta: present.has(seg) ? `${seg} universe` : "No data yet",
+      meta: present.has(seg) ? "Archived" : "No data yet",
       count: present.has(seg) ? 1 : 0,
     }));
     return {
       level,
       path,
       title: path.exchange,
-      subtitle: `${path.exchange} derivatives — Index, Stock, and other option underlyings.`,
+      subtitle: `${path.exchange} derivatives — Index Options and Stock Options.`,
       children,
       breadcrumbs: crumbs,
       canDownloadBundle: true,
@@ -148,16 +163,16 @@ export async function browse(
   }
 
   if (level === "segment" && path.exchange && path.segment) {
-    const symbols = (
-      await col.distinct("symbol", {
-        exchange: path.exchange,
-        segment: path.segment,
-      })
-    ).sort() as string[];
+    const exchange = path.exchange;
+    const segment = path.segment;
+    const symbols = await distinctValues("symbol", {
+      exchange,
+      segment,
+    });
 
     const activeSector = options.sector?.trim() || null;
     let visible = symbols;
-    if (path.segment === "STOCK" && activeSector) {
+    if (segment === "STOCK" && activeSector) {
       visible = symbols.filter((s) => sectorForSymbol(s) === activeSector);
     }
 
@@ -165,19 +180,19 @@ export async function browse(
       id: symbol,
       label: symbol,
       href: hrefForPath({
-        exchange: path.exchange,
-        segment: path.segment,
+        exchange,
+        segment,
         symbol,
       }),
       meta:
-        path.segment === "STOCK"
+        segment === "STOCK"
           ? sectorForSymbol(symbol)
-          : path.segment,
-      sector: path.segment === "STOCK" ? sectorForSymbol(symbol) : undefined,
+          : SEGMENT_LABELS[segment],
+      sector: segment === "STOCK" ? sectorForSymbol(symbol) : undefined,
     }));
 
     let sectorGroups: BrowseSectorGroup[] | undefined;
-    if (path.segment === "STOCK" && !activeSector) {
+    if (segment === "STOCK" && !activeSector) {
       const grouped = groupSymbolsBySector(symbols);
       sectorGroups = SECTORS.filter((s) => grouped[s].length > 0).map(
         (sector) => ({
@@ -186,8 +201,8 @@ export async function browse(
             id: symbol,
             label: symbol,
             href: hrefForPath({
-              exchange: path.exchange,
-              segment: path.segment,
+              exchange,
+              segment,
               symbol,
             }),
             meta: sector,
@@ -197,14 +212,15 @@ export async function browse(
       );
     }
 
+    const segLabel = SEGMENT_LABELS[segment];
     return {
       level,
       path,
       title: activeSector
-        ? `${path.exchange} · ${path.segment} · ${activeSector}`
-        : `${path.exchange} · ${path.segment}`,
+        ? `${exchange} · ${segLabel} · ${activeSector}`
+        : `${exchange} · ${segLabel}`,
       subtitle:
-        path.segment === "STOCK"
+        segment === "STOCK"
           ? `${symbols.length} equity underlyings${activeSector ? ` · filtered to ${activeSector}` : " · grouped by sector"}.`
           : `${symbols.length} underlyings with archived option chains.`,
       children,
@@ -248,13 +264,15 @@ export async function browse(
     path.side
   ) {
     const dates = (
-      await col.distinct("tradeDate", {
+      await distinctValues("tradeDate", {
         exchange: path.exchange,
         segment: path.segment,
         symbol: path.symbol,
         side: path.side,
       })
-    ).sort().reverse();
+    )
+      .sort()
+      .reverse();
     const children: BrowseChild[] = dates.map((tradeDate) => ({
       id: tradeDate,
       label: tradeDate,
@@ -288,7 +306,7 @@ export async function browse(
     path.tradeDate
   ) {
     const expiries = (
-      await col.distinct("expiryDate", {
+      await distinctValues("expiryDate", {
         exchange: path.exchange,
         segment: path.segment,
         symbol: path.symbol,
@@ -332,9 +350,9 @@ export async function browse(
   };
 
   let rows: OptionRow[] = [];
-  const doc = await col.findOne(filter);
-  if (doc?.rows?.length) {
-    rows = doc.rows;
+  const docs = await findChains(filter, { limit: 1 });
+  if (docs[0]?.rows?.length) {
+    rows = docs[0].rows;
   } else {
     const local = await readLocalChain({
       exchange: path.exchange!,
