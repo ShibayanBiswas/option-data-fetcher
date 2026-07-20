@@ -12,7 +12,7 @@ You do **not** need to be a developer. Follow the steps in order.
 |-------|----------------|
 | **Website** (Vercel) | Option Chain Archive UI in the browser |
 | **Database** (Turso) | Cloud SQLite (libSQL) for all chain rows |
-| **Cron** (Vercel) | Weekday auto-sync after market close (~5 PM IST) |
+| **Cron** (Vercel) | Weekday auto-sync after bhavcopy settles (~19:30 IST) |
 
 **Important:** Local `web/data/option_chain.db` does **not** persist on Vercel. Production must use **Turso**.
 
