@@ -308,16 +308,28 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
             </section>
           ))}
         </div>
-      ) : visibleChildren.length > 0 && data.level === "side" ? (
+      ) : visibleChildren.length > 0 &&
+        (data.level === "side" || data.level === "tradeDate") ? (
         <div className="date-list glass overflow-hidden rounded-2xl">
           <div className="border-b border-[var(--ar-border)] px-3 py-2 font-ui text-xs text-[var(--ar-muted)]">
-            {visibleChildren.length.toLocaleString()} sessions · oldest → newest
+            {data.level === "side"
+              ? `${visibleChildren.length.toLocaleString()} sessions · oldest → newest`
+              : `${visibleChildren.length.toLocaleString()} expiry files · strike ladders`}
           </div>
           <div className="date-list-scroll">
             {visibleChildren.map((child, index) => (
               <StaggerItem key={child.id} index={index}>
                 <Link href={child.href} className="date-list-row no-underline">
-                  <span className="date-list-label">{child.label}</span>
+                  <span className="date-list-label">
+                    {data.level === "tradeDate" ? (
+                      <>
+                        <span className="date-list-kicker">Expiry</span> {child.label}
+                      </>
+                    ) : (
+                      child.label
+                    )}
+                  </span>
+                  <span className="date-list-meta">{child.meta}</span>
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ar-gold)] opacity-70" />
                 </Link>
               </StaggerItem>
@@ -357,6 +369,10 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
       ) : data.level === "side" ? (
         <div className="glass rounded-2xl p-6 text-center font-ui text-sm text-[var(--ar-muted)]">
           No trade dates in this range. Widen the calendar filter or tap All dates.
+        </div>
+      ) : data.level === "tradeDate" ? (
+        <div className="glass rounded-2xl p-6 text-center font-ui text-sm text-[var(--ar-muted)]">
+          No expiry files for this trade date yet.
         </div>
       ) : null}
         </>

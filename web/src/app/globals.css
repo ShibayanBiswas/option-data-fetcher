@@ -1329,6 +1329,32 @@ html.dark .sexy-card-shine {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   font-weight: 600;
+  min-width: 0;
+  flex: 1;
+}
+
+.date-list-kicker {
+  display: inline-block;
+  margin-right: 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ar-gold-dark);
+  opacity: 0.9;
+}
+
+.date-list-meta {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: var(--ar-subtle);
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 520px) {
+  .date-list-meta {
+    display: none;
+  }
 }
 
 /* —— Horizontal scroll card rails —— */

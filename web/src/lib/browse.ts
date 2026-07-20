@@ -313,7 +313,7 @@ export async function browse(
     ).sort();
     const children: BrowseChild[] = expiries.map((expiryDate) => ({
       id: expiryDate,
-      label: `Expiry ${expiryDate}`,
+      label: expiryDate,
       href: hrefForPath({
         exchange: path.exchange,
         segment: path.segment,
@@ -322,7 +322,7 @@ export async function browse(
         tradeDate: path.tradeDate,
         expiryDate,
       }),
-      meta: "Strike ladder CSV",
+      meta: "Expiry · strike ladder",
     }));
     return {
       level,

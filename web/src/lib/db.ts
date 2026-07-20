@@ -239,7 +239,7 @@ export function invalidateDistinctCache(): void {
 
 export async function findChains(
   filter: ChainFilter,
-  options: { sortTradeDateDesc?: boolean; limit?: number } = {}
+  options: { sortTradeDateDesc?: boolean; limit?: number; offset?: number } = {}
 ): Promise<OptionChainDoc[]> {
   await ensureSchema();
   const db = getDbClient();
@@ -247,9 +247,14 @@ export async function findChains(
   const order = options.sortTradeDateDesc
     ? "ORDER BY trade_date DESC, expiry_date ASC"
     : "ORDER BY trade_date ASC, expiry_date ASC";
-  const limit = options.limit != null ? `LIMIT ${Math.max(1, options.limit)}` : "";
+  const limit =
+    options.limit != null ? `LIMIT ${Math.max(1, options.limit)}` : "";
+  const offset =
+    options.offset != null && options.limit != null
+      ? `OFFSET ${Math.max(0, options.offset)}`
+      : "";
   const rs = await db.execute({
-    sql: `SELECT * FROM option_chains ${sql} ${order} ${limit}`,
+    sql: `SELECT * FROM option_chains ${sql} ${order} ${limit} ${offset}`,
     args,
   });
   return rs.rows.map((r) => rowToDoc(r as Record<string, unknown>));

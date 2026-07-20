@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pathFromSegments } from "@/lib/storage";
 import {
-  buildCsvZip,
   buildExcelZip,
   buildLeafCsv,
   buildLeafExcel,
+  estimateBundleSize,
+  streamCsvZip,
 } from "@/lib/download";
 
 function attachmentHeaders(filename: string, contentType: string, cache: string) {
@@ -15,9 +16,10 @@ function attachmentHeaders(filename: string, contentType: string, cache: string)
     "Cache-Control": cache,
   };
 }
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
   try {
@@ -54,6 +56,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Probe: cheap JSON check before starting a large zip download
+    if (sp.get("probe") === "1") {
+      if (segments.length <= 1 && !isLeaf) {
+        return NextResponse.json(
+          { ok: false, error: "Pick a narrower folder to download." },
+          { status: 400 }
+        );
+      }
+      const files = await estimateBundleSize(browsePath);
+      return NextResponse.json({
+        ok: true,
+        files,
+        format,
+        path: pathParam,
+      });
+    }
+
     if (mode === "leaf" || isLeaf) {
       if (format === "xlsx" || format === "excel") {
         const { buffer, filename } = await buildLeafExcel(browsePath);
@@ -87,11 +106,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const { buffer, filename } = await buildCsvZip(browsePath);
-    return new NextResponse(new Uint8Array(buffer), {
+    // CSV Zip — stream so large INDEX/CALL histories do not OOM
+    const fileCount = await estimateBundleSize(browsePath);
+    const { stream, filename } = streamCsvZip(browsePath);
+    return new NextResponse(stream, {
       headers: {
         ...attachmentHeaders(filename, "application/zip", "private, no-store"),
-        "Content-Length": String(buffer.length),
+        "X-Archive-File-Count": String(fileCount),
       },
     });
   } catch (err) {

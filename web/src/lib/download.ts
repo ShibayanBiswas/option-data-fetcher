@@ -1,16 +1,28 @@
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
-import { findChains } from "./db";
+import { createRequire } from "module";
+import { PassThrough, Readable } from "stream";
+import type { Archiver } from "archiver";
+import { countChains, findChains } from "./db";
 import { rowsToCsv } from "./storage";
 import type { BrowsePath, OptionChainDoc, OptionRow } from "./types";
 
-const ZIP_OPTS = {
-  type: "nodebuffer" as const,
-  compression: "DEFLATE" as const,
-  compressionOptions: { level: 1 },
+const require = createRequire(import.meta.url);
+type ZipArchiveCtor = new (options?: { store?: boolean; zlib?: { level: number } }) => Archiver;
+const archiverMod = require("archiver") as {
+  ZipArchive?: ZipArchiveCtor;
+  default?: { ZipArchive?: ZipArchiveCtor };
 };
+const ZipArchiveMaybe =
+  archiverMod.ZipArchive ?? archiverMod.default?.ZipArchive;
+if (!ZipArchiveMaybe) {
+  throw new Error("archiver ZipArchive export missing — check archiver version");
+}
+const ZipArchive: ZipArchiveCtor = ZipArchiveMaybe;
 
-const EXCEL_BATCH = 8;
+const PAGE_SIZE = 40;
+/** Soft cap for Excel zips — each workbook is heavy; use CSV Zip for larger sets. */
+const MAX_EXCEL_DOCS = 250;
 
 function filterFromPath(path: BrowsePath) {
   const filter: {
@@ -61,6 +73,25 @@ export async function loadDocs(path: BrowsePath): Promise<OptionChainDoc[]> {
   });
 }
 
+async function* iterateDocs(
+  path: BrowsePath,
+  pageSize = PAGE_SIZE
+): AsyncGenerator<OptionChainDoc> {
+  const filter = filterFromPath(path);
+  let offset = 0;
+  for (;;) {
+    const batch = await findChains(filter, {
+      sortTradeDateDesc: false,
+      limit: pageSize,
+      offset,
+    });
+    if (batch.length === 0) break;
+    for (const doc of batch) yield doc;
+    if (batch.length < pageSize) break;
+    offset += pageSize;
+  }
+}
+
 async function docToExcelBuffer(doc: OptionChainDoc): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Chain");
@@ -81,43 +112,86 @@ async function docToExcelBuffer(doc: OptionChainDoc): Promise<Buffer> {
   return Buffer.from(xlsx);
 }
 
-export async function buildCsvZip(path: BrowsePath): Promise<{
-  buffer: Buffer;
+/**
+ * Stream a CSV zip without holding the full archive in memory.
+ * Pages DB reads so large INDEX / CALL history downloads stay stable.
+ */
+export function streamCsvZip(path: BrowsePath): {
+  stream: ReadableStream<Uint8Array>;
   filename: string;
-}> {
-  const docs = await loadDocs(path);
-  const zip = new JSZip();
-  for (const doc of docs) {
-    zip.file(entryPath(doc), rowsToCsv(doc.rows));
-  }
-  if (docs.length === 0) {
-    zip.file("README.txt", "No option chain files matched this selection.");
-  }
-  const buffer = Buffer.from(await zip.generateAsync(ZIP_OPTS));
-  return { buffer, filename: bundleName(path, "zip") };
+} {
+  const filename = bundleName(path, "zip");
+  const passthrough = new PassThrough();
+  // STORE = no deflate CPU — faster & lower peak memory for CSV
+  const archive = new ZipArchive({ store: true });
+
+  archive.on("error", (err: Error) => {
+    passthrough.destroy(err);
+  });
+  archive.pipe(passthrough);
+
+  void (async () => {
+    try {
+      let count = 0;
+      for await (const doc of iterateDocs(path)) {
+        archive.append(rowsToCsv(doc.rows), { name: entryPath(doc) });
+        count += 1;
+        // Yield to event loop every page so the process stays responsive
+        if (count % PAGE_SIZE === 0) {
+          await new Promise((r) => setImmediate(r));
+        }
+      }
+      if (count === 0) {
+        archive.append("No option chain files matched this selection.\n", {
+          name: "README.txt",
+        });
+      }
+      await archive.finalize();
+    } catch (err) {
+      archive.abort();
+      passthrough.destroy(err instanceof Error ? err : new Error(String(err)));
+    }
+  })();
+
+  const webStream = Readable.toWeb(passthrough) as ReadableStream<Uint8Array>;
+  return { stream: webStream, filename };
 }
 
 export async function buildExcelZip(path: BrowsePath): Promise<{
   buffer: Buffer;
   filename: string;
 }> {
-  const docs = await loadDocs(path);
+  const filter = filterFromPath(path);
+  const total = await countChains(filter);
+  if (total > MAX_EXCEL_DOCS) {
+    throw new Error(
+      `Too many files for Excel Zip (${total.toLocaleString()}). Use CSV Zip, or narrow to a symbol / trade date (max ${MAX_EXCEL_DOCS}).`
+    );
+  }
+
+  const docs = await findChains(filter, { sortTradeDateDesc: false });
   const zip = new JSZip();
 
-  for (let i = 0; i < docs.length; i += EXCEL_BATCH) {
-    const batch = docs.slice(i, i + EXCEL_BATCH);
+  for (let i = 0; i < docs.length; i += 6) {
+    const batch = docs.slice(i, i + 6);
     const buffers = await Promise.all(batch.map((doc) => docToExcelBuffer(doc)));
     batch.forEach((doc, idx) => {
       const name = entryPath(doc).replace(/\.csv$/i, ".xlsx");
       zip.file(name, buffers[idx]);
     });
+    await new Promise((r) => setImmediate(r));
   }
 
   if (docs.length === 0) {
     zip.file("README.txt", "No option chain files matched this selection.");
   }
 
-  const buffer = Buffer.from(await zip.generateAsync(ZIP_OPTS));
+  const buffer = Buffer.from(
+    await zip.generateAsync({
+      type: "nodebuffer",
+      compression: "STORE",
+    })
+  );
   return {
     buffer,
     filename: bundleName(path, "zip").replace(".zip", "_excel.zip"),
@@ -163,4 +237,8 @@ export async function buildLeafExcel(path: BrowsePath): Promise<{
     buffer: Buffer.from(xlsx),
     filename: bundleName(path, "xlsx"),
   };
+}
+
+export async function estimateBundleSize(path: BrowsePath): Promise<number> {
+  return countChains(filterFromPath(path));
 }
