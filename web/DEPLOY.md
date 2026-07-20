@@ -96,8 +96,8 @@ Click **Environment Variables** and add:
 |------|--------|--------------|
 | `LIBSQL_URL` | `libsql://…` from Turso | Production, Preview |
 | `LIBSQL_AUTH_TOKEN` | Turso token | Production, Preview |
-| `CRON_SECRET` | Random string (see below) | **Production only** |
-| `SYNC_SECRET` | Different random string | **Production only** |
+| `CRON_SECRET` | Random string (see below) | Production + Preview |
+| `SYNC_SECRET` | Different random string | Production + Preview |
 
 Generate secrets on your laptop:
 
@@ -115,10 +115,10 @@ Your URL will look like: `https://option-data-fetcher.vercel.app`
 ### 5. Confirm cron (Hobby / Pro)
 
 1. Vercel project → **Settings → Cron Jobs**  
-2. You should see: `30 11 * * 1-5` → `/api/cron/daily-sync`  
+2. You should see: `0 14 * * 1-5` → `/api/cron/daily-sync`  
 3. Defined in `web/vercel.json` — no extra setup if Root Directory is `web`
 
-> **Note:** Vercel Cron runs on **weekdays 11:30 UTC** (~17:00 IST). Requires a plan that supports cron (Hobby includes one cron on current Vercel tiers — verify in your dashboard).
+> **Note:** Cron runs **weekdays 14:00 UTC (~19:30 IST)** — after the ~18:30 IST bhavcopy readiness gate so the same-day session is pulled automatically. **Sync Today** in the header works same-origin without putting secrets in the browser.
 
 ---
 
@@ -243,7 +243,7 @@ Tips:
 |---------|-----|
 | Site empty | Turso env vars missing or seed not run against Turso |
 | Build fails on Vercel | Root Directory must be `web` |
-| Sync Unauthorized | Set `SYNC_SECRET` / `CRON_SECRET` |
+| Sync Unauthorized | Cron/seed needs `CRON_SECRET`/`SYNC_SECRET`. Desk **Sync Today** is same-origin and does not need a browser secret. |
 | Cron never runs | Check Settings → Cron Jobs; weekday after close |
 | Bhavcopy not ready | Exchange file not published — retry later |
 | Download timeout | Narrow folder; use CSV Zip; try leaf file first |
@@ -258,7 +258,7 @@ Tips:
 NSE zip + BSE CSV bhavcopy
         │
         ▼
- Sync Today  /  weekday cron (11:30 UTC)
+ Sync Today  /  weekday cron (14:00 UTC ≈ 19:30 IST)
         │
         ▼
    Classify INDEX · STOCK · OTHER

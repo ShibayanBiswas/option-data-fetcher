@@ -10,8 +10,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-function authorized(request: NextRequest): boolean {
-  if (process.env.NODE_ENV !== "production") return true;
+/** Privileged ops (seed / force / dated) still need a secret in production. */
+function hasSyncSecret(request: NextRequest): boolean {
   const secret = process.env.SYNC_SECRET || process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = request.headers.get("authorization");
@@ -22,6 +22,30 @@ function authorized(request: NextRequest): boolean {
     headerSecret === secret ||
     querySecret === secret
   );
+}
+
+/** Sync Today from the desk UI — same-origin, no client-side secret. */
+function isSameOriginBrowser(request: NextRequest): boolean {
+  const site = request.headers.get("sec-fetch-site");
+  if (site === "same-origin") return true;
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).host === request.nextUrl.host;
+  } catch {
+    return false;
+  }
+}
+
+function authorizeSync(
+  request: NextRequest,
+  privileged: boolean
+): boolean {
+  if (process.env.NODE_ENV !== "production") return true;
+  if (hasSyncSecret(request)) return true;
+  // Desk "Sync Today" (latest session only) works without exposing secrets.
+  if (!privileged && isSameOriginBrowser(request)) return true;
+  return false;
 }
 
 export async function GET() {
@@ -41,10 +65,6 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!authorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = (await request.json().catch(() => ({}))) as {
       date?: string;
@@ -53,19 +73,28 @@ export async function POST(request: NextRequest) {
       force?: boolean;
     };
 
+    const privileged = Boolean(body.seed || body.force || body.date);
+    if (!authorizeSync(request, privileged)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (body.seed) {
+      // Keep API seed tiny — full history belongs on the laptop CLI.
       const dates = await fetchTradingDates();
-      const limit = Math.min(body.days ?? 5, 60);
+      const limit = Math.min(Math.max(1, body.days ?? 1), 3);
       const slice = dates.slice(-limit);
       const results = [];
       for (const date of slice) {
-        results.push(await syncTradeDate(date, ["NSE", "BSE"], { force: body.force }));
+        results.push(
+          await syncTradeDate(date, ["NSE", "BSE"], { force: body.force })
+        );
       }
       return NextResponse.json({
         ok: true,
         mode: "seed",
         dates: slice,
         results,
+        note: "API seed is capped at 3 days. Use npm run seed:backfill for full history.",
       });
     }
 

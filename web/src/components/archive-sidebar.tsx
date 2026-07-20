@@ -215,14 +215,21 @@ export function ArchiveSidebar({
       }
 
       const run = (async () => {
-        const qs = new URLSearchParams();
-        if (treePath) qs.set("path", treePath);
-        if (sectorFilter) qs.set("sector", sectorFilter);
-        const res = await fetch(`/api/tree?${qs.toString()}`);
-        const json = await res.json();
-        const children = (json.children ?? []) as TreeNode[];
-        cacheRef.current = { ...cacheRef.current, [key]: children };
-        setCache({ ...cacheRef.current });
+        try {
+          const qs = new URLSearchParams();
+          if (treePath) qs.set("path", treePath);
+          if (sectorFilter) qs.set("sector", sectorFilter);
+          const res = await fetch(`/api/tree?${qs.toString()}`);
+          if (!res.ok) throw new Error(`Tree HTTP ${res.status}`);
+          const json = await res.json();
+          const children = (json.children ?? []) as TreeNode[];
+          cacheRef.current = { ...cacheRef.current, [key]: children };
+          setCache({ ...cacheRef.current });
+        } catch {
+          // Cache empty so the sidebar does not spin on "Loading…" forever.
+          cacheRef.current = { ...cacheRef.current, [key]: [] };
+          setCache({ ...cacheRef.current });
+        }
       })().finally(() => {
         delete inflightRef.current[key];
       });

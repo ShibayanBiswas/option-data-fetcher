@@ -11,6 +11,7 @@ import {
 } from "./constants";
 import {
   dropEmptyColumns,
+  parseCsv,
   sortRowsByStrike,
   writeLocalChain,
 } from "./storage";
@@ -66,17 +67,7 @@ async function fetchWithRetries(
 }
 
 function parseCsvText(text: string): OptionRow[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const cells = line.split(",");
-    const row: OptionRow = {};
-    headers.forEach((h, i) => {
-      row[h] = (cells[i] ?? "").trim();
-    });
-    return row;
-  });
+  return parseCsv(text);
 }
 
 async function downloadNseRows(tradeDate: string): Promise<OptionRow[] | "missing"> {
@@ -199,30 +190,46 @@ export async function syncTradeDate(
     message: "",
   };
 
+  await ensureSchema();
+
+  const segmentFilter =
+    options.segments?.length === 1
+      ? { segment: options.segments[0] }
+      : undefined;
+
+  // Per-exchange completeness: NSE-only / BSE-only days must still heal.
+  const toFetch: Exchange[] = [];
   let existingCount = 0;
-  if (options.segments?.length === 1) {
-    existingCount = await countChains({
-      tradeDate,
-      segment: options.segments[0],
-    });
-  } else if (options.segments?.length) {
-    for (const segment of options.segments) {
-      existingCount += await countChains({ tradeDate, segment });
+  for (const exchange of exchanges) {
+    let n = 0;
+    if (options.segments && options.segments.length > 1) {
+      for (const segment of options.segments) {
+        n += await countChains({ tradeDate, exchange, segment });
+      }
+    } else {
+      n = await countChains({
+        tradeDate,
+        exchange,
+        ...segmentFilter,
+      });
     }
-  } else {
-    existingCount = await countChains({ tradeDate });
+    existingCount += n;
+    if (options.force || n === 0) {
+      toFetch.push(exchange);
+    } else {
+      result.skipped += n;
+    }
   }
   result.alreadyHad = existingCount > 0;
 
-  if (existingCount > 0 && !options.force) {
-    result.skipped = existingCount;
+  if (toFetch.length === 0) {
     result.status = "already_synced";
     result.ok = true;
-    result.message = `Archive already has ${tradeDate} (${existingCount.toLocaleString()} chain files). No changes needed.`;
+    result.message = `Archive already has ${tradeDate} on ${exchanges.join(" + ")} (${existingCount.toLocaleString()} chain files). No changes needed.`;
     return result;
   }
 
-  for (const exchange of exchanges) {
+  for (const exchange of toFetch) {
     try {
       const rows =
         exchange === "NSE"
@@ -265,12 +272,17 @@ export async function syncTradeDate(
   } else if (result.missing > 0 && result.saved === 0 && result.skipped === 0) {
     result.status = "missing";
     result.message = `Bhavcopy not published yet for ${tradeDate}. Try again after market settlement.`;
-  } else if (result.skipped > 0 && result.saved === 0 && result.failed === 0) {
+  } else if (result.skipped > 0 && result.saved === 0 && result.failed === 0 && result.missing === 0) {
     result.status = "already_synced";
     result.message = `Archive already has ${tradeDate} (${existingCount.toLocaleString()} chain files). No changes needed.`;
-  } else if (result.failed > 0 || (result.missing > 0 && result.saved > 0)) {
+  } else if (
+    result.failed > 0 ||
+    (result.missing > 0 && (result.saved > 0 || result.skipped > 0))
+  ) {
     result.status = "partial";
-    result.message = `Partial sync for ${tradeDate}: saved ${result.saved}, missing ${result.missing}, failed ${result.failed}.`;
+    result.message = `Partial sync for ${tradeDate}: saved ${result.saved}, missing ${result.missing}, failed ${result.failed}${
+      toFetch.length < exchanges.length ? ` (healed ${toFetch.join(", ")})` : ""
+    }.`;
   } else {
     result.status = "synced";
     result.message = `Synced ${tradeDate}: ${result.saved.toLocaleString()} chain files stored in SQLite.`;
@@ -301,7 +313,7 @@ function weekdayFallback(fromIso = UDIFF_EPOCH): string[] {
  * Optional `years` is ignored for start bound — history always begins at UDIFF_EPOCH
  * (kept for call-site compatibility).
  */
-export async function fetchTradingDates(_years?: number): Promise<string[]> {
+export async function fetchTradingDates(): Promise<string[]> {
   const start = new Date(`${UDIFF_EPOCH}T12:00:00Z`);
   const period1 = Math.floor(start.getTime() / 1000);
   const period2 = Math.floor(Date.now() / 1000) + 86_400;
@@ -370,17 +382,30 @@ export async function syncLatestAvailable(
   const candidates = [start, ...previousWeekdays(start, lookback)];
 
   let lastMissing: SyncResult | null = null;
+  let lastEmptyFailure: SyncResult | null = null;
+
   for (const date of candidates) {
-    const result = await syncTradeDate(date, ["NSE", "BSE"], { force: options.force });
+    const result = await syncTradeDate(date, ["NSE", "BSE"], {
+      force: options.force,
+    });
     if (result.status === "missing") {
       lastMissing = result;
+      continue;
+    }
+    // Transient exchange outage with nothing saved — try an older session.
+    if (
+      (result.status === "failed" || result.status === "partial") &&
+      result.saved === 0
+    ) {
+      lastEmptyFailure = result;
       continue;
     }
     return result;
   }
 
   return (
-    lastMissing ?? {
+    lastMissing ??
+    lastEmptyFailure ?? {
       ok: false,
       tradeDate: start,
       saved: 0,

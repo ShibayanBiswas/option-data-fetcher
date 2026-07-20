@@ -23,14 +23,9 @@ function applyTheme(theme: Theme) {
   document.documentElement.style.colorScheme = theme;
 }
 
-function readStoredTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  if (document.documentElement.classList.contains("dark")) return "dark";
-  return window.localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => readStoredTheme());
+  // Always start "light" on SSR + first client paint to avoid hydration mismatch.
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);

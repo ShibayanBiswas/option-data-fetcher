@@ -20,7 +20,6 @@ export type ChainFilter = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
   var _libsqlClient: Client | undefined;
 }
 
@@ -40,6 +39,15 @@ function resolveDbUrl(): { url: string; authToken?: string } {
   if (remote?.startsWith("file:")) {
     return { url: remote };
   }
+  // Absolute or relative filesystem paths (without file: prefix)
+  if (remote && (remote.startsWith("/") || remote.startsWith("./") || remote.startsWith("../"))) {
+    const abs = path.isAbsolute(remote) ? remote : path.join(process.cwd(), remote);
+    const dir = path.dirname(abs);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    return { url: `file:${abs}` };
+  }
 
   const dataDir = path.join(process.cwd(), "data");
   if (!fs.existsSync(dataDir)) {
@@ -52,6 +60,14 @@ function resolveDbUrl(): { url: string; authToken?: string } {
 export function getDbClient(): Client {
   if (!global._libsqlClient) {
     const { url, authToken } = resolveDbUrl();
+    if (
+      (url.startsWith("libsql://") || url.startsWith("https://")) &&
+      !authToken
+    ) {
+      throw new Error(
+        "Remote libSQL/Turso URL is set but LIBSQL_AUTH_TOKEN (or TURSO_AUTH_TOKEN) is missing."
+      );
+    }
     global._libsqlClient = createClient({ url, authToken });
   }
   return global._libsqlClient;
@@ -192,7 +208,7 @@ export async function countChains(filter: ChainFilter = {}): Promise<number> {
 }
 
 const distinctCache = new Map<string, { at: number; values: string[] }>();
-const DISTINCT_TTL_MS = 45_000;
+const DISTINCT_TTL_MS = 15_000;
 
 export async function distinctValues(
   field: keyof ChainFilter | "tradeDate" | "expiryDate" | "exchange" | "segment" | "symbol" | "side",

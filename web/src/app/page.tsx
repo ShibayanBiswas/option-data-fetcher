@@ -17,7 +17,7 @@ import {
 import { AppShell } from "@/components/app-shell";
 import { DeskFlow, type FlowNode } from "@/components/desk-flow";
 import { HScrollCard, HScrollSection } from "@/components/h-scroll";
-import { SexyCard, SexyKpi } from "@/components/sexy-card";
+import { SexyKpi } from "@/components/sexy-card";
 
 type Status = {
   ok: boolean;

@@ -24,13 +24,13 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
 2. **Turso** → Create DB → copy URL + token
 3. **Env vars** (Production):
    - `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
-   - `CRON_SECRET`, `SYNC_SECRET` (generate with `openssl rand -hex 32`)
+   - `CRON_SECRET`, `SYNC_SECRET` (Production + Preview; `openssl rand -hex 32`)
 4. **Deploy** → wait for build
 5. **Seed** from laptop with same Turso creds:
    ```bash
    npm run seed:backfill   # full UDiFF history for ALL securities (NSE+BSE)
    ```
-6. **Verify** — Browse, CSV Zip, Sync Today, cron job in Vercel settings
+6. **Verify** — Browse, CSV Zip, Sync Today, cron job (`0 14 * * 1-5` ≈ 19:30 IST)
 
 > **Coverage:** NSE/BSE UDiFF F&O bhavcopy begins **2024-01-01**. Pre-2024 files use a different layout and are not ingested. Latest session appears after ~18:30 IST settlement. BSE stock options (`STO`) appear in bhavcopy from **~2024-06-27** onward; earlier BSE sessions are index-only.
 

@@ -6,7 +6,15 @@ import { CommandPalette, type SearchHit } from "@/components/command-palette";
 import { BrowseShell } from "@/components/browse-shell";
 import { useCallback, useEffect, useState } from "react";
 
-function variantForStatus(status?: string): DeskAlertVariant {
+type SyncStatus =
+  | "synced"
+  | "already_synced"
+  | "missing"
+  | "partial"
+  | "failed"
+  | undefined;
+
+function variantForStatus(status: SyncStatus): DeskAlertVariant {
   switch (status) {
     case "synced":
       return "success";
@@ -17,12 +25,16 @@ function variantForStatus(status?: string): DeskAlertVariant {
       return "warning";
     case "failed":
       return "error";
-    default:
+    case undefined:
       return "info";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
   }
 }
 
-function titleForStatus(status?: string): string {
+function titleForStatus(status: SyncStatus): string {
   switch (status) {
     case "synced":
       return "Sync complete";
@@ -34,8 +46,12 @@ function titleForStatus(status?: string): string {
       return "Partial sync";
     case "failed":
       return "Sync failed";
-    default:
+    case undefined:
       return "Sync status";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
   }
 }
 
@@ -78,10 +94,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({}),
       });
       const json = await res.json();
-      if (!res.ok && res.status !== 207 && json.status !== "missing" && json.status !== "partial") {
+      if (
+        !res.ok &&
+        res.status !== 207 &&
+        json.status !== "missing" &&
+        json.status !== "partial"
+      ) {
         throw new Error(json.error || json.message || "Sync failed");
       }
-      const status = json.status as string | undefined;
+      const status = json.status as SyncStatus;
       setDialog({
         open: true,
         title: titleForStatus(status),
@@ -99,6 +120,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } finally {
       setSyncing(false);
     }
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setDialog((d) => {
+      const reload = d.reload;
+      if (reload) {
+        // Defer reload so the dialog can close first.
+        queueMicrotask(() => window.location.reload());
+      }
+      return { ...d, open: false };
+    });
   }, []);
 
   return (
@@ -127,14 +159,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         message={dialog.message}
         variant={dialog.variant}
         primaryLabel={dialog.reload ? "Refresh view" : "OK"}
-        onClose={() => {
-          const reload = dialog.reload;
-          setDialog((d) => ({ ...d, open: false }));
-          if (reload) window.location.reload();
-        }}
-        onPrimary={() => {
-          if (dialog.reload) window.location.reload();
-        }}
+        onClose={closeDialog}
       />
     </div>
   );

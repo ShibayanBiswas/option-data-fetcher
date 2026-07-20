@@ -6,8 +6,13 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function authorized(request: NextRequest): boolean {
+  // Local / preview without secrets: allow for desk testing.
+  if (process.env.NODE_ENV !== "production") return true;
+
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  // Fail closed in production — never leave cron publicly triggerable.
+  if (!secret) return false;
+
   const auth = request.headers.get("authorization");
   const headerSecret = request.headers.get("x-cron-secret");
   const querySecret = request.nextUrl.searchParams.get("secret");

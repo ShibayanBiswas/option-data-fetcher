@@ -114,10 +114,11 @@ export function DownloadButtons({
           const n = probeJson.files ?? 0;
           setHint(
             n > 0
-              ? `Streaming ${n.toLocaleString()} files — keep this tab open until the zip finishes.`
-              : "Download started — keep this tab open until the zip finishes."
+              ? `Download started — streaming ${n.toLocaleString()} files. Keep this tab open until the browser finishes saving the zip.`
+              : "Download started — keep this tab open until the browser finishes saving the zip."
           );
           startNativeDownload(url);
+          // Native iframe download: probe passed; completion is the browser's job.
           setDone(format);
           window.setTimeout(() => {
             setDone(null);
