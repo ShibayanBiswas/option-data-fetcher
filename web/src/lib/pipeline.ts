@@ -156,13 +156,23 @@ export async function upsertDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
   await ensureSchema();
 
-  // Local CSV store keeps full rows; SQLite/libSQL stores lean rows.
-  for (const doc of docs) {
-    try {
-      await writeLocalChain(doc);
-    } catch {
-      // Ephemeral hosts may not allow local writes.
-    }
+  // Local CSV store is for laptop browsing only. Skip on Turso/remote seeds —
+  // writing hundreds of thousands of files per day makes cloud seeding unusable.
+  const remote =
+    process.env.LIBSQL_URL?.startsWith("libsql://") ||
+    process.env.LIBSQL_URL?.startsWith("https://") ||
+    process.env.SKIP_LOCAL_STORE === "1";
+
+  if (!remote) {
+    await Promise.all(
+      docs.map(async (doc) => {
+        try {
+          await writeLocalChain(doc);
+        } catch {
+          /* ephemeral hosts may not allow local writes */
+        }
+      })
+    );
   }
 
   const leanDocs = docs.map((doc) => ({
@@ -229,37 +239,56 @@ export async function syncTradeDate(
     return result;
   }
 
-  for (const exchange of toFetch) {
+  // Fetch NSE + BSE in parallel, then upsert sequentially per exchange result.
+  const settled = await Promise.all(
+    toFetch.map(async (exchange) => {
+      try {
+        const rows =
+          exchange === "NSE"
+            ? await downloadNseRows(tradeDate)
+            : await downloadBseRows(tradeDate);
+        return { exchange, rows, error: null as string | null };
+      } catch (err) {
+        return {
+          exchange,
+          rows: null as OptionRow[] | "missing" | null,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    })
+  );
+
+  for (const item of settled) {
+    if (item.error) {
+      result.failed += 1;
+      result.errors.push(`${item.exchange} ${tradeDate}: ${item.error}`);
+      continue;
+    }
+    if (item.rows === "missing" || item.rows == null) {
+      result.missing += 1;
+      continue;
+    }
+
+    const optionRows = item.rows.filter((r) => {
+      const tp = String(r.OptnTp ?? "");
+      return tp === "CE" || tp === "PE";
+    });
+
+    const docs = groupIntoDocs(item.exchange, tradeDate, optionRows, {
+      segments: options.segments,
+    });
+    if (docs.length === 0) {
+      result.missing += 1;
+      continue;
+    }
+
     try {
-      const rows =
-        exchange === "NSE"
-          ? await downloadNseRows(tradeDate)
-          : await downloadBseRows(tradeDate);
-
-      if (rows === "missing") {
-        result.missing += 1;
-        continue;
-      }
-
-      const optionRows = rows.filter((r) => {
-        const tp = String(r.OptnTp ?? "");
-        return tp === "CE" || tp === "PE";
-      });
-
-      const docs = groupIntoDocs(exchange, tradeDate, optionRows, {
-        segments: options.segments,
-      });
-      if (docs.length === 0) {
-        result.missing += 1;
-        continue;
-      }
-
       const saved = await upsertDocs(docs);
       result.saved += saved;
     } catch (err) {
       result.failed += 1;
       result.errors.push(
-        `${exchange} ${tradeDate}: ${err instanceof Error ? err.message : String(err)}`
+        `${item.exchange} ${tradeDate}: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }

@@ -18,6 +18,8 @@ import {
 import { UDIFF_EPOCH } from "../src/lib/constants";
 
 async function main() {
+  process.env.SKIP_LOCAL_STORE = "1";
+  console.log("Target DB:", process.env.LIBSQL_URL || "(local)");
   console.log("—— 1/3 Wipe all option_chains (Turso/local) ——");
   await ensureSchema();
   await dropAllChains();

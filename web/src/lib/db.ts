@@ -160,7 +160,11 @@ export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
   await ensureSchema();
   const db = getDbClient();
 
-  const chunkSize = 40;
+  const chunkSize =
+    process.env.LIBSQL_URL?.startsWith("libsql://") ||
+    process.env.LIBSQL_URL?.startsWith("https://")
+      ? 120
+      : 40;
   for (let i = 0; i < docs.length; i += chunkSize) {
     const chunk = docs.slice(i, i + chunkSize);
     const statements = chunk.map((doc) => ({
