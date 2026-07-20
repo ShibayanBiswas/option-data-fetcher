@@ -24,19 +24,14 @@ export function SiteHeader({
         <Link href="/" className="flex items-center gap-3 no-underline">
           <Image
             src={theme === "dark" ? "/brand/arwl-logo-white.png" : "/brand/arwl-logo.png"}
-            alt="Anand Rathi — Private Wealth. uncomplicated."
+            alt="Option Chain Archive"
             width={148}
             height={40}
             className="h-9 w-auto"
             priority
           />
-          <div className="hidden sm:block">
-            <div className="text-[0.68rem] uppercase tracking-[0.18em] text-[var(--ar-subtle)]">
-              Anand Rathi Wealth · Options Desk
-            </div>
-            <div className="font-serif text-lg leading-tight text-[var(--ar-ink)]">
-              Option Chain <span className="shine-text">Archive</span>
-            </div>
+          <div className="hidden sm:block font-serif text-lg leading-tight text-[var(--ar-ink)]">
+            Option Chain <span className="shine-text">Archive</span>
           </div>
         </Link>
 
@@ -103,11 +98,8 @@ export function SiteHeader({
 export function SiteFooter() {
   return (
     <footer className="mt-10 border-t border-[var(--ar-border)] py-8">
-      <div className="mx-auto flex max-w-full flex-col items-center justify-between gap-2 px-4 font-ui text-sm text-[var(--ar-subtle)] sm:flex-row lg:px-6">
-        <span>
-          <span className="text-[var(--ar-gold)]">Anand Rathi Wealth</span> · Option Chain Desk
-        </span>
-        <span>Private Wealth. uncomplicated.</span>
+      <div className="mx-auto flex max-w-full items-center justify-center px-4 font-ui text-sm text-[var(--ar-subtle)] lg:px-6">
+        <span>Option Chain Archive</span>
       </div>
     </footer>
   );

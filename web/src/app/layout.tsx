@@ -3,7 +3,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Option Chain Archive | Anand Rathi Wealth",
+  title: "Option Chain Archive",
   description:
     "Download historical NSE and BSE Indian option chain bhavcopy data — indexed, segregated, and synced daily.",
   icons: {

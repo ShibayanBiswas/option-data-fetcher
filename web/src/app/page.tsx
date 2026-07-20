@@ -85,9 +85,6 @@ function HomeBody() {
           transition={{ duration: 0.7 }}
           className="relative z-10 max-w-4xl"
         >
-          <p className="font-ui mb-3 text-[0.72rem] uppercase tracking-[0.22em] text-[var(--ar-gold)]">
-            Anand Rathi Wealth · Options Desk
-          </p>
           <h1 className="font-serif text-4xl leading-tight text-[var(--ar-ink)] sm:text-6xl">
             Option Chain <span className="shine-text">Archive</span>
           </h1>

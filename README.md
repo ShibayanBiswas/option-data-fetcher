@@ -1,6 +1,6 @@
 # Option Chain Archive
 
-Anand Rathi Wealth desk web app for browsing and downloading historical Indian option chain data from **NSE** and **BSE** F&O bhavcopy.
+Web app for browsing and downloading historical Indian option chain data from **NSE** and **BSE** F&O bhavcopy.
 
 ## Quick start
 
