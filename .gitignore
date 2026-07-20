@@ -1,13 +1,21 @@
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-.env
-.DS_Store
-Thumbs.db
+# Next.js app
+web/node_modules/
+web/.next/
+web/out/
+web/data/
+web/.env.local
+web/.env*.local
+web/tsconfig.tsbuildinfo
 
-# Generated data (not tracked in git)
+# Generated option data
 data/
 Option Chain Data/
 Modified Option Chain Data/
+
+.env
+.DS_Store
+Thumbs.db
+*.pyc
+__pycache__/
+.venv/
+venv/
