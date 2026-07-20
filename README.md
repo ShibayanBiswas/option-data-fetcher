@@ -13,33 +13,30 @@ npm run dev
 
 Open http://localhost:3000
 
-- **Browse** — left file tree + right panel; root shows NSE | BSE exchange picker
-- **Schema** — horizontal card rails + exchange flowchart
-- **Home** — coverage KPIs, desk navigation map, **horizontal** capability/pipeline cards
+- **Browse** — file tree + panel; NSE | BSE picker at root; compact folder tiles
+- **Schema** — horizontal card rails (compact columns/sectors); exchange map
+- **Home** — KPI coverage, navigation map, capability/pipeline scroll rows
 - **⌘K / Ctrl+K** — jump search
-- **Sync Today** — pull the latest bhavcopy session
+- **Sync Today** — latest bhavcopy session
 
 ## Docs
 
 | Doc | Audience |
 |-----|----------|
-| [`web/DEPLOY.md`](web/DEPLOY.md) | **Full deploy guide** — GitHub → Turso → Vercel → cron → download tips |
+| [`web/DEPLOY.md`](web/DEPLOY.md) | **Full Vercel deploy from scratch** — Turso, env vars, seed, cron, checklist |
 | [`web/README.md`](web/README.md) | App features, hierarchy, scripts |
 
-## Deploy (summary)
+## Deploy on Vercel (summary)
 
-Deploy the **`web`** folder to Vercel with **Turso**:
+1. Import repo on Vercel — **Root Directory = `web`**
+2. Create Turso DB → set `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
+3. Set `CRON_SECRET`, `SYNC_SECRET` (Production)
+4. Deploy → seed Turso once from laptop (`npm run seed:max`)
+5. Verify Browse, downloads, Sync Today, cron
 
-- `LIBSQL_URL`
-- `LIBSQL_AUTH_TOKEN`
-- `CRON_SECRET`
-- `SYNC_SECRET`
+Weekday cron: **11:30 UTC** (~17:00 IST) → `/api/cron/daily-sync`
 
-Weekday cron (`web/vercel.json`) calls `/api/cron/daily-sync` at **11:30 UTC** (~17:00 IST).
-
-Seed Turso once from your laptop (`npm run seed:max` or `seed:fresh` with Turso env set).
-
-Full checklist: **[`web/DEPLOY.md`](web/DEPLOY.md)**.
+Full guide: **[`web/DEPLOY.md`](web/DEPLOY.md)**
 
 ## Hierarchy
 

@@ -534,22 +534,15 @@ html.dark .brand-logo--dark {
 
 @media (min-width: 1280px) {
   .kpi-band-grid {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
-}
-
-.kpi-sync-tile {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 100%;
 }
 
 .kpi-card {
   position: relative;
   overflow: hidden;
   border-radius: 1rem;
-  padding: 1rem 1.1rem;
+  padding: 0.95rem 1rem;
   background: color-mix(in srgb, var(--ar-surface) 92%, transparent);
   border: 1px solid var(--ar-border);
   box-shadow: var(--ar-shadow);
@@ -558,9 +551,9 @@ html.dark .brand-logo--dark {
 
 .kpi-card-label {
   font-family: var(--font-sans);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ar-subtle);
 }
@@ -568,8 +561,9 @@ html.dark .brand-logo--dark {
 .kpi-card-value {
   margin-top: 0.35rem;
   font-family: var(--font-sans);
-  font-size: clamp(1.05rem, 1.6vw, 1.45rem);
-  font-weight: 700;
+  font-size: clamp(1rem, 1.45vw, 1.32rem);
+  font-weight: 800;
+  line-height: 1.15;
   background: linear-gradient(135deg, var(--ar-maroon), var(--ar-gold));
   -webkit-background-clip: text;
   background-clip: text;
@@ -1716,12 +1710,12 @@ html.dark .exchange-picker-badge.is-live {
   flex: 1;
   text-align: center;
   font-family: var(--font-sans);
-  font-size: 0.62rem;
+  font-size: 0.74rem;
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 0.28rem 0.35rem;
-  border-radius: 0.4rem;
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.45rem;
   border: 1px solid var(--ar-border);
   color: var(--ar-ink);
   background: var(--ar-panel);
@@ -1735,27 +1729,63 @@ html.dark .exchange-picker-badge.is-live {
 }
 
 .ex-pair--sm .ex-pair-btn {
-  font-size: 0.58rem;
-  padding: 0.22rem 0.3rem;
+  font-size: 0.68rem;
+  padding: 0.32rem 0.42rem;
 }
 
-/* Uniform fixed tiles — ~50% wider */
+.ex-pair--md .ex-pair-btn {
+  font-size: 0.78rem;
+  padding: 0.42rem 0.55rem;
+  letter-spacing: 0.14em;
+}
+
+/* Uniform fixed tiles */
+.h-scroll-card--xs,
+.h-scroll-rail[data-size="xs"] .h-scroll-card {
+  width: 10.25rem;
+  min-height: 3.1rem;
+  height: auto;
+  padding: 0.55rem 0.65rem 0.5rem;
+}
+
+.h-scroll-rail[data-size="xs"] .h-scroll-card-link {
+  width: 10.25rem;
+}
+
+.h-scroll-card--xs .h-scroll-card-footer,
+.h-scroll-rail[data-size="xs"] .h-scroll-card-footer {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+}
+
+.h-scroll-card--xs .desk-card-title--xs,
+.h-scroll-rail[data-size="xs"] .desk-card-title--xs {
+  font-size: 0.92rem;
+  line-height: 1.2;
+  margin: 0;
+}
+
 .h-scroll-card--sm,
 .h-scroll-rail[data-size="sm"] .h-scroll-card {
-  width: 16.5rem;
-  height: 8.1rem;
+  width: 14.5rem;
+  min-height: 6.25rem;
+  height: auto;
+  padding: 0.7rem 0.85rem;
 }
 
 .h-scroll-card--md,
 .h-scroll-rail[data-size="md"] .h-scroll-card {
-  width: 21.75rem;
-  height: 10.25rem;
+  width: 19.5rem;
+  min-height: 8.5rem;
+  height: auto;
+  padding: 0.75rem 0.9rem;
 }
 
 .h-scroll-card--lg,
 .h-scroll-rail[data-size="lg"] .h-scroll-card {
-  width: 25.1rem;
-  height: 11.5rem;
+  width: 22.5rem;
+  min-height: 9.75rem;
+  height: auto;
 }
 
 .h-scroll-card--xl,
@@ -1770,13 +1800,13 @@ html.dark .exchange-picker-badge.is-live {
 }
 
 .h-scroll-rail[data-size="sm"] .h-scroll-card-link {
-  width: 16.5rem;
+  width: 14.5rem;
 }
 .h-scroll-rail[data-size="md"] .h-scroll-card-link {
-  width: 21.75rem;
+  width: 19.5rem;
 }
 .h-scroll-rail[data-size="lg"] .h-scroll-card-link {
-  width: 25.1rem;
+  width: 22.5rem;
 }
 .h-scroll-rail[data-size="xl"] .h-scroll-card-link {
   width: 27.75rem;
@@ -1924,6 +1954,56 @@ html.dark .exchange-picker-badge.is-live {
   color: var(--ar-ink);
   word-break: break-all;
   line-height: 1.3;
+}
+
+.desk-card-mono--compact {
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.desk-card-title--xs {
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+/* Browse folder tiles — simple, tight, elegant */
+.desk-tile.sexy-card {
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.85rem;
+}
+
+.desk-tile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.desk-tile-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.desk-tile-title {
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  line-height: 1.2;
+  color: var(--ar-ink);
+}
+
+.desk-tile-meta {
+  margin-top: 0.2rem;
+  font-family: var(--font-sans);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ar-subtle);
+}
+
+.desk-tile-meta--ok {
+  color: var(--ar-gold-dark);
 }
 
 /* —— Motion & micro-interactions —— */

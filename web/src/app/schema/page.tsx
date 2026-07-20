@@ -255,7 +255,7 @@ export default function SchemaPage() {
               delay={i * 0.04}
               footer={
                 "pathSuffix" in c && c.pathSuffix ? (
-                  <ExchangePairLinks pathSuffix={c.pathSuffix} />
+                  <ExchangePairLinks pathSuffix={c.pathSuffix} size="md" />
                 ) : undefined
               }
             >
@@ -309,17 +309,16 @@ export default function SchemaPage() {
           eyebrow="05 · Columns"
           title="Strike ladder fields"
           subtitle="Preferred UDiFF columns stored in lean SQLite rows"
-          cardSize="sm"
+          cardSize="xs"
         >
           {PREFERRED_COLUMNS.map((col, i) => (
             <HScrollCard
               key={col}
-              size="sm"
+              size="xs"
               accent="mixed"
-              delay={Math.min(i * 0.015, 0.35)}
+              delay={Math.min(i * 0.012, 0.25)}
             >
-              <p className="desk-card-kicker">Field</p>
-              <p className="desk-card-mono mt-2">{col}</p>
+              <p className="desk-card-mono desk-card-mono--compact">{col}</p>
             </HScrollCard>
           ))}
         </HScrollSection>
@@ -329,25 +328,23 @@ export default function SchemaPage() {
           eyebrow="06 · Sectors"
           title="Stock sectors"
           subtitle="Same sector map on NSE and BSE — choose an exchange on each card"
-          cardSize="sm"
+          cardSize="xs"
         >
           {SECTORS.map((sector, i) => (
             <HScrollCard
               key={sector}
-              size="sm"
+              size="xs"
               accent="mixed"
-              delay={Math.min(i * 0.02, 0.35)}
+              delay={Math.min(i * 0.015, 0.25)}
               footer={
                 <ExchangePairLinks
                   pathSuffix="STOCK"
                   query={`sector=${encodeURIComponent(sector)}`}
+                  size="md"
                 />
               }
             >
-              <p className="desk-card-kicker">Sector</p>
-              <h3 className="desk-card-title desk-card-title--sm mt-1.5 line-clamp-2">
-                {sector}
-              </h3>
+              <h3 className="desk-card-title desk-card-title--xs line-clamp-2">{sector}</h3>
             </HScrollCard>
           ))}
         </HScrollSection>

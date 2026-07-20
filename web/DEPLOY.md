@@ -1,6 +1,6 @@
-# Deploy Option Chain Archive (for beginners)
+# Deploy Option Chain Archive on Vercel (from scratch)
 
-This guide takes you from **zero** to a **live website** that updates itself every weekday after market close.
+Complete guide: **GitHub → Turso → Vercel → seed → cron → verify**.
 
 You do **not** need to be a developer. Follow the steps in order.
 
@@ -10,100 +10,121 @@ You do **not** need to be a developer. Follow the steps in order.
 
 | Piece | What it does |
 |-------|----------------|
-| **Website** (Vercel) | The Option Chain Archive UI people open in a browser |
-| **Database** (Turso) | Stores option-chain rows in the cloud (SQLite-compatible) |
-| **Nightly job** (Vercel Cron) | Pulls the latest NSE/BSE bhavcopy on weekdays ~5:00 PM IST |
+| **Website** (Vercel) | Option Chain Archive UI in the browser |
+| **Database** (Turso) | Cloud SQLite (libSQL) for all chain rows |
+| **Cron** (Vercel) | Weekday auto-sync after market close (~5 PM IST) |
 
-Local laptop = `file:./data/option_chain.db`  
-Live site on Vercel = **Turso** (a local `.db` file **will not** survive on Vercel)
+**Important:** Local `web/data/option_chain.db` does **not** persist on Vercel. Production must use **Turso**.
 
 ---
 
-## Before you start (accounts)
+## Part A — Accounts (10 minutes)
 
-Create free accounts (email signup is fine):
+Create free accounts:
 
 1. **GitHub** — https://github.com  
 2. **Vercel** — https://vercel.com (sign in with GitHub)  
 3. **Turso** — https://turso.tech  
 
-Optional on your PC:
+Optional for seeding from your laptop:
 
-- [Node.js 20+](https://nodejs.org) (only if you want to run the app locally)
-- Turso CLI (for creating the database from a terminal)
+- [Node.js 20+](https://nodejs.org)  
+- Turso CLI (`curl -sSfL https://get.tur.so/install.sh | bash`)
 
 ---
 
-## Step 1 — Put the code on GitHub
+## Part B — GitHub repo
 
-If the repo already exists at  
-https://github.com/ShibayanBiswas/option-data-fetcher  
-you can skip cloning and go to Step 2.
+Repo: https://github.com/ShibayanBiswas/option-data-fetcher
 
-Otherwise:
-
-1. Open the repo on GitHub.
-2. Click **Code → Download ZIP**, or clone it:
+The Next.js app lives in the **`web`** folder. Vercel **Root Directory** must be `web`.
 
 ```bash
 git clone https://github.com/ShibayanBiswas/option-data-fetcher.git
 cd option-data-fetcher
 ```
 
-The website lives in the **`web`** folder. That folder is what Vercel must deploy.
-
 ---
 
-## Step 2 — Create the Turso database
+## Part C — Turso database (5 minutes)
 
-### Easy path (Turso website)
+### Website
 
 1. Log in at https://turso.tech  
-2. Create a new database named e.g. `option-chain-archive`  
-3. Copy:
-   - **Database URL** → this becomes `LIBSQL_URL`  
-   - **Auth token** → this becomes `LIBSQL_AUTH_TOKEN`  
+2. **Create database** → name: `option-chain-archive`  
+3. Pick a region **close to your users** (e.g. Mumbai / AWS ap-south-1 if available)  
+4. Copy:
+   - **Database URL** → `LIBSQL_URL` (starts with `libsql://`)  
+   - **Auth token** → `LIBSQL_AUTH_TOKEN`
 
-### Terminal path
+### CLI (optional)
 
 ```bash
-curl -sSfL https://get.tur.so/install.sh | bash
 turso auth login
 turso db create option-chain-archive
 turso db show option-chain-archive --url
 turso db tokens create option-chain-archive
 ```
 
-Save both values in a notepad. You will paste them into Vercel next.
+Save both values in a password manager — never commit them.
 
 ---
 
-## Step 3 — Import the project on Vercel
+## Part D — Vercel project (15 minutes)
+
+### 1. Import
 
 1. Go to https://vercel.com/new  
-2. **Import** the GitHub repo `option-data-fetcher`  
-3. Open **Root Directory** → set it to **`web`** (important!)  
-4. Framework: **Next.js** (auto-detected)  
-5. Do **not** change Build Command (`npm run build`)  
-6. Click **Environment Variables** and add:
+2. Click **Import** next to `option-data-fetcher`  
+3. If the repo is not listed, connect GitHub and grant access
 
-| Name | Value | Where |
-|------|--------|--------|
-| `LIBSQL_URL` | Turso URL (`libsql://…`) | Production + Preview |
-| `LIBSQL_AUTH_TOKEN` | Turso token | Production + Preview |
-| `CRON_SECRET` | Any long random string (e.g. password generator) | Production |
-| `SYNC_SECRET` | Another random string | Production |
+### 2. Configure build
 
-7. Click **Deploy**
+| Setting | Value |
+|---------|--------|
+| **Framework** | Next.js (auto) |
+| **Root Directory** | `web` ← critical |
+| **Build Command** | `npm run build` (default) |
+| **Output Directory** | `.next` (default) |
+| **Install Command** | `npm install` (default) |
 
-Wait until the deploy finishes. You will get a URL like  
-`https://option-data-fetcher.vercel.app`
+### 3. Environment variables
+
+Click **Environment Variables** and add:
+
+| Name | Value | Environments |
+|------|--------|--------------|
+| `LIBSQL_URL` | `libsql://…` from Turso | Production, Preview |
+| `LIBSQL_AUTH_TOKEN` | Turso token | Production, Preview |
+| `CRON_SECRET` | Random string (see below) | **Production only** |
+| `SYNC_SECRET` | Different random string | **Production only** |
+
+Generate secrets on your laptop:
+
+```bash
+openssl rand -hex 32   # use for CRON_SECRET
+openssl rand -hex 32   # use for SYNC_SECRET (must differ)
+```
+
+### 4. Deploy
+
+Click **Deploy**. Wait 2–5 minutes.
+
+Your URL will look like: `https://option-data-fetcher.vercel.app`
+
+### 5. Confirm cron (Hobby / Pro)
+
+1. Vercel project → **Settings → Cron Jobs**  
+2. You should see: `30 11 * * 1-5` → `/api/cron/daily-sync`  
+3. Defined in `web/vercel.json` — no extra setup if Root Directory is `web`
+
+> **Note:** Vercel Cron runs on **weekdays 11:30 UTC** (~17:00 IST). Requires a plan that supports cron (Hobby includes one cron on current Vercel tiers — verify in your dashboard).
 
 ---
 
-## Step 4 — Put data into Turso (one-time seed)
+## Part E — Seed Turso (one-time, from laptop)
 
-A brand-new Turso DB is empty. Fill it once from your laptop:
+A new Turso DB is empty. Fill it once:
 
 ```bash
 cd web
@@ -111,160 +132,75 @@ npm install
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and set the **same** Turso values:
+Edit `.env.local`:
 
 ```env
 LIBSQL_URL=libsql://YOUR-DB.turso.io
 LIBSQL_AUTH_TOKEN=your-token
 ```
 
-Then seed (pick one):
+Pick a seed strategy:
 
 ```bash
-# Faster demo: full INDEX history + last 30 STOCK sessions
+# Recommended first deploy: full INDEX + recent STOCK
 npm run seed:max -- --stock-days=30
 
-# Full wipe + download everything (hours; large)
+# Quick test: last 5 sessions
+npm run seed 5
+
+# Full history (hours, very large)
 npm run seed:fresh
 ```
 
-When it finishes, refresh your Vercel site. Home KPIs and Browse should show dates and symbols.
+When finished, refresh the live Vercel site — Home KPIs and Browse should show data.
 
 ---
 
-## Step 5 — Daily auto-sync (already wired)
+## Part F — Post-deploy checklist (5 minutes)
 
-The file `web/vercel.json` schedules:
+| # | Test | Pass if |
+|---|------|---------|
+| 1 | Open `/` | KPI cards show dates and file counts |
+| 2 | `/browse` | NSE \| BSE exchange picker loads |
+| 3 | NSE → Index Options | Compact folder tiles (e.g. “Archived”) |
+| 4 | Symbol → CALL | Trade dates oldest → newest; calendar filter works |
+| 5 | One expiry | Strike table + CSV/Excel download |
+| 6 | CSV Zip on `NIFTY/CALL` | Browser download starts (large zip streams) |
+| 7 | `/schema` | Compact column + sector cards; NSE/BSE buttons readable |
+| 8 | **Sync Today** (header) | Returns synced / already_synced on a trading day |
+| 9 | Cron manual test | See below |
 
-```
-Weekdays 11:30 UTC  ≈  17:00 IST
-→ GET /api/cron/daily-sync
-```
-
-### Checklist so it actually runs
-
-1. Vercel project → **Settings → Cron Jobs** — confirm the job exists  
-2. `CRON_SECRET` is set on the project  
-3. After market close on a trading day, open Browse or tap **Sync Today** once to verify  
-
-Manual test (replace secrets/URL):
+### Manual cron test
 
 ```bash
 curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
   "https://YOUR-APP.vercel.app/api/cron/daily-sync"
 ```
 
-You should get JSON with `"status": "synced"` or `"already_synced"` / `"missing"` (holiday / file not published yet).
+Expected: JSON with `"status": "synced"`, `"already_synced"`, or `"missing"`.
 
 ---
 
-## Step 6 — How people use the live site
-
-| Action | How |
-|--------|-----|
-| Browse archive | Open **/browse** — left tree + right panel scroll separately |
-| Jump fast | Press **⌘K** (Mac) or **Ctrl+K** (Windows) |
-| Latest session | Click **Sync Today** in the header |
-| Schema map | Open **/schema** — horizontal card rows + exchange flowchart |
-| Download | CSV / Excel on folders (zip) or on an expiry leaf (single file) |
-
-Tree shape:
-
-```
-NSE | BSE
- └── Index Options | Stock Options | Other Securities
-      └── Symbol (stocks under sector folders)
-           └── CALL | PUT
-                └── Trade date (oldest → newest; calendar filter)
-                     └── Expiry file (strike ladder)
-```
-
----
-
-## Step 7 — Local development (optional)
-
-```bash
-cd web
-npm install
-cp .env.example .env.local
-# Leave LIBSQL_* empty to use local file DB:
-#   data/option_chain.db
-npm run seed 5
-npm run dev
-```
-
-Open http://localhost:3000
-
-| Script | Meaning |
-|--------|---------|
-| `npm run seed N` | Last N trading days |
-| `npm run seed:all` | All calendar sessions |
-| `npm run seed:fresh` | Wipe + full re-download |
-| `npm run seed:max` | INDEX full + recent STOCK |
-| `npm run ingest:local` | Load existing `data/store` CSVs into SQLite |
-
----
-
-## Troubleshooting (plain English)
-
-| Problem | Fix |
-|---------|-----|
-| Site opens but archive is empty | Turso env vars missing, or you never ran a seed against Turso |
-| Sync says Unauthorized | Set `SYNC_SECRET` / `CRON_SECRET` and use the Bearer header for cron |
-| Cron never updates | Confirm Root Directory is `web`, cron job enabled, weekday after settlement |
-| “Bhavcopy not ready” | Exchange file not published yet — try again later or next session |
-| Huge DB / Turso quota | Prefer `seed:max` (INDEX full + limited STOCK days) |
-| Buttons looked duplicated | Fixed — expiry pages show one CSV/Excel pair in the header only |
-| Sidebar and page scrolled together | Fixed — each pane scrolls on its own inside the desk layout |
-| Downloads slow or time out | Download a **leaf** expiry file first. For folders, pick a narrower path — **root archive zip is disabled** (too large) |
-| Logo invisible in dark mode | Fixed — header logo follows `html.dark` via CSS, not React hydration |
-| Excel zip very slow | CSV zip is faster — Excel builds workbooks in parallel but still take longer on large folders |
-
----
-
-## Step 8 — Post-deploy checklist (5 minutes)
-
-Run through this once after every new deploy:
-
-1. **Home** — KPI cards show document count and latest trade date (not zero / blank).
-2. **Browse → NSE → Index Options** — sidebar expands; main panel lists symbols without long spinners.
-3. **Pick a symbol → CALL** — trade dates appear **oldest → newest**; calendar filter works.
-4. **Open one expiry** — strike table loads; **CSV** and **Excel** download (green check flash = started OK).
-5. **Folder zip** — go up one level and click **CSV Zip**; browser download bar should start (large zips stream — do not refresh).
-6. **Sync Today** — on a trading day after ~5 PM IST, should return synced or already_synced.
-7. **Cron** — Vercel → Settings → Cron Jobs shows `30 11 * * 1-5` hitting `/api/cron/daily-sync`.
-
----
-
-## Performance & downloads (production)
-
-The app is tuned for Vercel + Turso:
-
-| Layer | What we do |
-|-------|------------|
-| **Browse / tree APIs** | 30s private cache + DB distinct-value cache (45s) |
-| **Sidebar** | Does not load hundreds of trade dates — only folder levels |
-| **Downloads (leaf)** | Single-file CSV/Excel; fetched with error handling + 1h cache |
-| **Downloads (folder zip)** | Browser **native stream** (no full zip in JavaScript memory); parallel Excel generation server-side; fast zip compression |
-| **Static assets** | Brand logos cached 1 year via `vercel.json` |
-
-### Tips for fast downloads after go-live
-
-- **Prefer CSV Zip** over Excel Zip for large folders (same data, less CPU).
-- **Narrow the path** — e.g. `NSE/INDEX/NIFTY/CALL` instead of the whole `NSE` tree.
-- **Use the calendar filter** on trade-date lists, then drill into one session before bulk export.
-- **Turso region**: create the DB in a region close to Vercel (e.g. **AWS Mumbai / ap-south-1** if available) to cut query latency.
-- **Vercel plan**: download routes allow up to **60s** server time — extremely wide zips may need a smaller selection.
-
-### Redeploy after code changes
+## Part G — Redeploy after code changes
 
 ```bash
 git add .
-git commit -m "your message"
+git commit -m "Describe your change"
 git push origin main
 ```
 
-Vercel auto-rebuilds on push to `main`. No manual restart needed.
+Vercel rebuilds automatically on push to `main`.
+
+---
+
+## Part H — Custom domain (optional)
+
+1. Vercel project → **Settings → Domains**  
+2. Add your domain (e.g. `archive.yourfirm.com`)  
+3. Follow DNS instructions (CNAME or A record)  
+4. SSL is automatic
+
+Environment variables and cron stay the same — no re-seed needed.
 
 ---
 
@@ -274,46 +210,91 @@ Vercel auto-rebuilds on push to `main`. No manual restart needed.
 |----------|----------|---------|
 | `LIBSQL_URL` | Yes (prod) | Turso database URL |
 | `LIBSQL_AUTH_TOKEN` | Yes (prod) | Turso auth token |
-| `CRON_SECRET` | Yes (prod) | Bearer token for `/api/cron/daily-sync` |
-| `SYNC_SECRET` | Yes (prod) | Protects manual sync API |
-| *(none)* | Dev only | Omit Turso vars → uses `web/data/option_chain.db` |
-
-Generate secrets (example):
-
-```bash
-openssl rand -hex 32
-```
-
-Use a different value for `CRON_SECRET` and `SYNC_SECRET`.
+| `CRON_SECRET` | Yes (prod) | Bearer for `/api/cron/daily-sync` |
+| `SYNC_SECRET` | Yes (prod) | Protects `POST /api/sync` |
+| *(none)* | Dev only | Omit Turso → uses `web/data/option_chain.db` |
 
 ---
 
-## Security (do this)
+## Downloads (production)
 
-- Never commit `.env.local` or paste tokens into chat/PRs  
-- Rotate Turso / cron secrets if they leak  
-- `data/*.db` and `data/store` are gitignored — keep archives off GitHub  
+| Type | Behaviour |
+|------|-----------|
+| **Leaf CSV/Excel** | Single file via fetch |
+| **Folder CSV Zip** | **Streamed** — safe for full INDEX CALL history |
+| **Folder Excel Zip** | Capped at 250 files — use CSV Zip for larger sets |
+| **Root / whole exchange** | Blocked (too large) |
+
+Tips:
+
+- Prefer **CSV Zip** over Excel Zip on large folders  
+- Narrow path: `NSE/INDEX/NIFTY/CALL` not whole `NSE`  
+- Keep tab open until large zip finishes  
 
 ---
 
-## Architecture (one picture)
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Site empty | Turso env vars missing or seed not run against Turso |
+| Build fails on Vercel | Root Directory must be `web` |
+| Sync Unauthorized | Set `SYNC_SECRET` / `CRON_SECRET` |
+| Cron never runs | Check Settings → Cron Jobs; weekday after close |
+| Bhavcopy not ready | Exchange file not published — retry later |
+| Download timeout | Narrow folder; use CSV Zip; try leaf file first |
+| Logo hidden in dark mode | Hard refresh — logo uses CSS dark toggle |
+| Excel zip error “Too many files” | Use CSV Zip or download a narrower folder |
+
+---
+
+## Architecture
 
 ```
 NSE zip + BSE CSV bhavcopy
         │
         ▼
- Sync Today  /  weekday cron
+ Sync Today  /  weekday cron (11:30 UTC)
         │
         ▼
-   Classify FinInstrmTp
-   INDEX · STOCK · OTHER
+   Classify INDEX · STOCK · OTHER
    CALL · PUT · expiry
         │
         ▼
    Turso (prod)  or  local SQLite (dev)
         │
         ▼
-   Browse · Download · Search · Schema
+   Browse · Download · Schema · Search
 ```
 
-You are done when: the Vercel URL loads, Browse shows NSE/BSE, and weekday cron (or Sync Today) can pull a fresh session.
+---
+
+## Local development (optional)
+
+```bash
+cd web
+npm install
+cp .env.example .env.local
+# Leave LIBSQL_* empty for local SQLite
+npm run seed 10
+npm run dev
+```
+
+Open http://localhost:3000
+
+| Script | Meaning |
+|--------|---------|
+| `npm run seed N` | Last N trading days |
+| `npm run seed:max` | Full INDEX + recent STOCK |
+| `npm run seed:fresh` | Wipe + full re-download |
+| `npm run typecheck` | TypeScript check |
+
+---
+
+## Security
+
+- Never commit `.env.local` or paste tokens in chat/PRs  
+- Rotate Turso / cron secrets if they leak  
+- `data/*.db` and `data/store` are gitignored  
+
+You are done when: the Vercel URL loads, Browse shows NSE/BSE, KPIs have data, and Sync Today or cron can pull a fresh session.

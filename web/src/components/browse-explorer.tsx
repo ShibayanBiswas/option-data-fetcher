@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight,
   Folder,
-  FolderOpen,
   Layers,
   Building2,
   LineChart,
@@ -285,22 +284,18 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
                   <SexyCard
                     key={child.id}
                     href={child.href}
-                    delay={Math.min(gi * 0.02 + index * 0.015, 0.35)}
+                    delay={Math.min(gi * 0.02 + index * 0.012, 0.3)}
                     accent="mixed"
-                    className="!p-3"
+                    className="desk-tile"
                   >
-                    <div className="flex items-start gap-2.5">
-                      <div className="rounded-lg border border-[var(--ar-border)] bg-[var(--ar-panel)] p-1.5 text-[var(--ar-ink)]">
-                        <FolderOpen className="h-4 w-4" />
+                    <div className="desk-tile-row">
+                      <div className="desk-tile-body">
+                        <div className="desk-tile-title truncate">{child.label}</div>
+                        {child.meta ? (
+                          <div className="desk-tile-meta truncate">{child.meta}</div>
+                        ) : null}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-serif text-base text-[var(--ar-ink)]">
-                          {child.label}
-                        </div>
-                        <div className="font-ui text-[11px] text-[var(--ar-subtle)]">
-                          {child.meta}
-                        </div>
-                      </div>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ar-gold)] opacity-70" />
                     </div>
                   </SexyCard>
                 ))}
@@ -343,23 +338,27 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
               <motion.div key={child.id} layout>
                 <SexyCard
                   href={child.href}
-                  delay={Math.min(index * 0.015, 0.3)}
+                  delay={Math.min(index * 0.012, 0.25)}
                   accent="mixed"
-                  className="!p-3.5"
+                  className="desk-tile"
                 >
-                  <div className="flex items-start gap-2.5">
-                    <div className="rounded-xl border border-[var(--ar-border)] bg-[var(--ar-panel)] p-2 text-[var(--ar-ink)]">
-                      <FolderOpen className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-serif text-lg text-[var(--ar-ink)]">{child.label}</div>
-                      {child.meta && (
-                        <div className="mt-0.5 font-ui text-xs text-[var(--ar-subtle)]">
+                  <div className="desk-tile-row">
+                    <div className="desk-tile-body">
+                      <div className="desk-tile-title">{child.label}</div>
+                      {child.meta ? (
+                        <div
+                          className={`desk-tile-meta ${
+                            child.meta.toLowerCase().includes("live") ||
+                            child.meta.toLowerCase().includes("archived")
+                              ? "desk-tile-meta--ok"
+                              : ""
+                          }`}
+                        >
                           {child.meta}
                         </div>
-                      )}
+                      ) : null}
                     </div>
-                    <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[var(--ar-gold)]" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-[var(--ar-gold)] opacity-75" />
                   </div>
                 </SexyCard>
               </motion.div>

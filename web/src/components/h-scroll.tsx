@@ -4,7 +4,7 @@ import { type ReactNode, useRef, type MouseEvent, type WheelEvent } from "react"
 import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion";
 import { AnimatedScrollCue } from "./exchange-pair-links";
 
-export type HScrollCardSize = "sm" | "md" | "lg" | "xl";
+export type HScrollCardSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 export function HScrollSection({
   eyebrow,

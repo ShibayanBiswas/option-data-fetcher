@@ -13,7 +13,6 @@ import {
   Search,
   Layers,
   Map,
-  RefreshCw,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { DeskFlow, type FlowNode } from "@/components/desk-flow";
@@ -313,16 +312,6 @@ function HomeBody() {
             value={(status?.segments?.STOCK ?? 0).toLocaleString()}
             delay={0.2}
           />
-          <SexyCard delay={0.23} className="!p-4 kpi-sync-tile" href="/browse">
-            <div className="kpi-card-label">Next step</div>
-            <div className="mt-1.5 flex items-center gap-2 font-ui text-sm font-semibold text-[var(--ar-ink)]">
-              <RefreshCw className="h-3.5 w-3.5 text-[var(--ar-gold)]" />
-              Sync Today in header
-            </div>
-            <p className="mt-1 font-ui text-[11px] text-[var(--ar-subtle)]">
-              Pull the latest bhavcopy after market close
-            </p>
-          </SexyCard>
         </div>
         <p className="mt-3 font-ui text-xs text-[var(--ar-subtle)]">
           UDiFF bhavcopy history is available from mid-2024 onward. Use Sync Today

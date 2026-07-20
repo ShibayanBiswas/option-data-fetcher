@@ -14,31 +14,31 @@ npm run dev              # http://localhost:3000
 
 Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain.db`.
 
-## Deploy to the internet (Vercel + Turso)
+## Deploy on Vercel (from scratch)
 
-**Complete beginner guide:** [`DEPLOY.md`](./DEPLOY.md)
+**Complete guide:** [`DEPLOY.md`](./DEPLOY.md)
 
-Short version:
+### Short checklist
 
-1. Root Directory on Vercel = **`web`**
-2. Create a Turso database (prefer a region near your users)
-3. Set `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`, `CRON_SECRET`, `SYNC_SECRET`
-4. Seed Turso once (`npm run seed:max` or `seed:fresh` with Turso env set)
-5. Weekday cron at 11:30 UTC hits `/api/cron/daily-sync`
-6. Smoke-test Browse + CSV/Excel downloads after deploy
+1. **Vercel** → Import `option-data-fetcher` → Root Directory **`web`**
+2. **Turso** → Create DB → copy URL + token
+3. **Env vars** (Production):
+   - `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
+   - `CRON_SECRET`, `SYNC_SECRET` (generate with `openssl rand -hex 32`)
+4. **Deploy** → wait for build
+5. **Seed** from laptop with same Turso creds: `npm run seed:max -- --stock-days=30`
+6. **Verify** — Browse, CSV Zip, Sync Today, cron job in Vercel settings
 
 ## What you get
 
-- Left **file tree** (Index Options + Stock Options open by default; CALL/PUT are leaves — trade dates load in the main panel only)
-- Right panel scrolls **on its own** (independent from the sidebar)
-- Trade-date lists: **oldest → newest**, with a **calendar range** filter
-- Home: horizontal **capabilities** + **pipeline** card rails (Scroll →), desk navigation map, coverage KPIs
-- Schema: horizontal card rails for hierarchy / segregation / pipeline / columns / sectors
-- Browse root: **NSE | BSE exchange picker** (no full-archive zip — pick a folder first)
-- Schema: full-width **exchange map**, NSE|BSE pair links on sectors & segregation
-- Motion: page transitions, sidebar expand, download success flash (respects reduced-motion)
-- ⌘K / Ctrl+K search
-- Sync Today + weekday auto-refresh
+- Left **file tree** (Index/Stock open by default; trade dates in main panel only)
+- Right panel scrolls **independently** from sidebar
+- **Compact folder tiles** — Index Options, Stock Options, symbols (title + status, no wasted space)
+- Trade dates & expiry files as **clean scroll lists**
+- Schema **compact cards** for UDiFF columns + stock sectors with larger **NSE | BSE** buttons
+- Horizontal **Scroll →** rails on Home + Schema
+- Streaming **CSV Zip** downloads (safe for full INDEX CALL history)
+- ⌘K search · Sync Today · weekday cron
 
 ## Hierarchy
 
@@ -53,26 +53,24 @@ NSE | BSE
 
 Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OTHER**.
 
-## Performance notes
+## Performance & downloads
 
 | Area | Behaviour |
 |------|-----------|
 | Tree / browse APIs | Short private cache + distinct-value cache |
 | Sidebar | Does not load hundreds of trade dates |
-| Folder zip download | Native browser stream (not buffered in JS) |
-| Excel zip | Parallel workbook build; prefer CSV Zip for large folders |
-| Leaf download | Single file + 1h cache headers |
+| CSV Zip | Server streams via archiver; browser native download |
+| Excel Zip | Max 250 files per zip — use CSV for larger folders |
+| Leaf download | Single file + cache headers |
 
 ## Scripts
 
 | Command | Purpose |
 |---------|---------|
 | `npm run dev` | Local UI |
-| `npm run seed N` | Last N sessions → SQLite + CSV |
-| `npm run seed:all` | All calendar sessions |
-| `npm run seed:fresh` | Wipe DB + store, full re-download |
-| `npm run seed:max` | Full INDEX + last N STOCK days |
-| `npm run ingest:local` | CSV store → SQLite |
+| `npm run seed N` | Last N sessions |
+| `npm run seed:max` | Full INDEX + recent STOCK |
+| `npm run seed:fresh` | Wipe + full re-download |
 | `npm run typecheck` | TypeScript check |
 
 ## Manual sync
