@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BrowseChild, BrowseResponse } from "@/lib/types";
 import { DateRangeFilter } from "./date-range-filter";
 import { DownloadButtons } from "./download-buttons";
+import { StaggerItem } from "./motion-primitives";
 import { SexyCard } from "./sexy-card";
 
 function iconForLevel(level: BrowseResponse["level"]) {
@@ -100,7 +101,7 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
 
   const tradeDates = useMemo(() => {
     if (!data || data.level !== "side") return [] as BrowseChild[];
-    // API already returns newest → oldest
+    // API returns oldest → newest
     return data.children;
   }, [data]);
 
@@ -163,7 +164,13 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
         {data.breadcrumbs.map((crumb, i) => {
           const last = i === data.breadcrumbs.length - 1;
           return (
-            <span key={`${crumb.href}-${i}`} className="path-crumb-item">
+            <motion.span
+              key={`${crumb.href}-${i}`}
+              className="path-crumb-item"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
+            >
               {i > 0 ? <ChevronRight className="path-crumb-sep" aria-hidden /> : null}
               {last ? (
                 <span className="path-crumb-current">{crumb.label}</span>
@@ -172,13 +179,18 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
                   {crumb.label}
                 </Link>
               )}
-            </span>
+            </motion.span>
           );
         })}
       </nav>
 
       <SexyCard className="!p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <motion.div
+          className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+        >
           <div className="min-w-0 flex-1">
             <div className="label-chip mb-2 inline-flex items-center gap-2">
               <Icon className="h-3.5 w-3.5" />
@@ -197,7 +209,7 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
               <DownloadButtons path={downloadPath} leaf />
             </div>
           ) : null}
-        </div>
+        </motion.div>
       </SexyCard>
 
       {data.level === "side" && dateBounds && dateFrom && dateTo ? (
@@ -285,6 +297,22 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
             </section>
           ))}
         </div>
+      ) : visibleChildren.length > 0 && data.level === "side" ? (
+        <div className="date-list glass overflow-hidden rounded-2xl">
+          <div className="border-b border-[var(--ar-border)] px-3 py-2 font-ui text-xs text-[var(--ar-muted)]">
+            {visibleChildren.length.toLocaleString()} sessions · oldest → newest
+          </div>
+          <div className="date-list-scroll">
+            {visibleChildren.map((child, index) => (
+              <StaggerItem key={child.id} index={index}>
+                <Link href={child.href} className="date-list-row no-underline">
+                  <span className="date-list-label">{child.label}</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ar-gold)] opacity-70" />
+                </Link>
+              </StaggerItem>
+            ))}
+          </div>
+        </div>
       ) : visibleChildren.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           <AnimatePresence mode="popLayout">
@@ -341,11 +369,16 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
               </thead>
               <tbody>
                 {data.table.rows.map((row, i) => (
-                  <tr key={i}>
+                  <motion.tr
+                    key={i}
+                    initial={{ opacity: 0, x: -4 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: Math.min(i * 0.008, 0.35) }}
+                  >
                     {data.table!.columns.map((col) => (
                       <td key={col}>{row[col] == null ? "" : String(row[col])}</td>
                     ))}
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>

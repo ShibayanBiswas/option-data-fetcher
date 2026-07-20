@@ -14,7 +14,8 @@ npm run dev
 Open http://localhost:3000
 
 - **Browse** — left file tree + right panel (separate scrolling)
-- **Schema** — horizontal card rails + exchange flowchart
+- **Schema** — full-width maps + card rails (fill or horizontal scroll)
+- **Home** — coverage KPIs, desk navigation map, capabilities, pipeline
 - **⌘K / Ctrl+K** — jump search
 - **Sync Today** — pull the latest bhavcopy session
 
@@ -22,8 +23,8 @@ Open http://localhost:3000
 
 | Doc | Audience |
 |-----|----------|
-| [`web/DEPLOY.md`](web/DEPLOY.md) | **Layman deploy guide** — GitHub → Turso → Vercel → daily cron |
-| [`web/README.md`](web/README.md) | App features + scripts |
+| [`web/DEPLOY.md`](web/DEPLOY.md) | **Full deploy guide** — GitHub → Turso → Vercel → cron → download tips |
+| [`web/README.md`](web/README.md) | App features, hierarchy, scripts |
 
 ## Deploy (summary)
 
@@ -36,4 +37,17 @@ Deploy the **`web`** folder to Vercel with **Turso**:
 
 Weekday cron (`web/vercel.json`) calls `/api/cron/daily-sync` at **11:30 UTC** (~17:00 IST).
 
-Full checklist with screenshots-level steps: **[`web/DEPLOY.md`](web/DEPLOY.md)**.
+Seed Turso once from your laptop (`npm run seed:max` or `seed:fresh` with Turso env set).
+
+Full checklist: **[`web/DEPLOY.md`](web/DEPLOY.md)**.
+
+## Hierarchy
+
+```
+NSE | BSE
+ └── Index Options | Stock Options | Other Securities
+      └── Symbol (stocks under sector folders)
+           └── CALL | PUT
+                └── Trade date (oldest → newest; calendar filter)
+                     └── expiry_date_YYYY-MM-DD
+```

@@ -82,6 +82,9 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(
     `CREATE INDEX IF NOT EXISTS idx_chains_segment ON option_chains(exchange, segment)`
   );
+  await db.execute(
+    `CREATE INDEX IF NOT EXISTS idx_chains_side_dates ON option_chains(exchange, segment, symbol, side, trade_date)`
+  );
 }
 
 /** @deprecated alias — schema replaces Mongo indexes */
@@ -173,6 +176,7 @@ export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
     }));
     await db.batch(statements, "write");
   }
+  invalidateDistinctCache();
   return docs.length;
 }
 
@@ -186,6 +190,9 @@ export async function countChains(filter: ChainFilter = {}): Promise<number> {
   });
   return Number(rs.rows[0]?.n ?? 0);
 }
+
+const distinctCache = new Map<string, { at: number; values: string[] }>();
+const DISTINCT_TTL_MS = 45_000;
 
 export async function distinctValues(
   field: keyof ChainFilter | "tradeDate" | "expiryDate" | "exchange" | "segment" | "symbol" | "side",
@@ -202,13 +209,32 @@ export async function distinctValues(
   };
   const col = colMap[field];
   if (!col) return [];
+
+  const cacheKey = `${field}:${JSON.stringify(filter)}`;
+  const hit = distinctCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < DISTINCT_TTL_MS) {
+    return hit.values;
+  }
+
   const { sql, args } = whereClause(filter);
   const db = getDbClient();
   const rs = await db.execute({
     sql: `SELECT DISTINCT ${col} AS v FROM option_chains ${sql} ORDER BY v ASC`,
     args,
   });
-  return rs.rows.map((r) => String(r.v)).filter(Boolean);
+  const values = rs.rows.map((r) => String(r.v)).filter(Boolean);
+  distinctCache.set(cacheKey, { at: Date.now(), values });
+  // Bound cache size
+  if (distinctCache.size > 200) {
+    const first = distinctCache.keys().next().value;
+    if (first) distinctCache.delete(first);
+  }
+  return values;
+}
+
+/** Clear distinct cache after writes (sync / seed). */
+export function invalidateDistinctCache(): void {
+  distinctCache.clear();
 }
 
 export async function findChains(
@@ -276,6 +302,7 @@ export async function dropAllChains(): Promise<void> {
   await ensureSchema();
   const db = getDbClient();
   await db.execute(`DELETE FROM option_chains`);
+  invalidateDistinctCache();
 }
 
 /** Close is a no-op for remote; kept for script cleanup symmetry. */

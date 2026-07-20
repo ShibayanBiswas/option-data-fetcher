@@ -101,6 +101,8 @@ export async function getTreeChildren(
   }
 
   if (!path.side) {
+    // CALL / PUT are navigation leaves in the sidebar — trade dates live in the
+    // main browse pane (can be 400+ days). Expanding them here was the main lag.
     return (["CALL", "PUT"] as const).map((side) => ({
       id: `${path.exchange}-${path.segment}-${path.symbol}-${side}`,
       label: side,
@@ -112,48 +114,24 @@ export async function getTreeChildren(
       }),
       treePath: `${path.exchange}/${path.segment}/${path.symbol}/${side}`,
       kind: "side" as const,
-      hasChildren: true,
+      hasChildren: false,
     }));
   }
 
+  // Trade-date / expiry levels are not expanded in the file tree.
+  // Browse pane owns the full date ladder.
   if (!path.tradeDate) {
-    const dates = (
-      await distinctValues("tradeDate", {
-        exchange: path.exchange,
-        segment: path.segment,
-        symbol: path.symbol,
-        side: path.side,
-      })
-    )
-      .sort()
-      .reverse();
-
-    return dates.map((tradeDate) => ({
-      id: `${path.exchange}-${path.segment}-${path.symbol}-${path.side}-${tradeDate}`,
-      label: tradeDate,
-      href: hrefForPath({
-        exchange: path.exchange,
-        segment: path.segment,
-        symbol: path.symbol,
-        side: path.side,
-        tradeDate,
-      }),
-      treePath: `${path.exchange}/${path.segment}/${path.symbol}/${path.side}/${tradeDate}`,
-      kind: "tradeDate" as const,
-      hasChildren: true,
-    }));
+    return [];
   }
 
   if (!path.expiryDate) {
-    const expiries = (
-      await distinctValues("expiryDate", {
-        exchange: path.exchange,
-        segment: path.segment,
-        symbol: path.symbol,
-        side: path.side,
-        tradeDate: path.tradeDate,
-      })
-    ).sort();
+    const expiries = await distinctValues("expiryDate", {
+      exchange: path.exchange,
+      segment: path.segment,
+      symbol: path.symbol,
+      side: path.side,
+      tradeDate: path.tradeDate,
+    });
 
     return expiries.map((expiryDate) => ({
       id: `${path.exchange}-${path.segment}-${path.symbol}-${path.side}-${path.tradeDate}-${expiryDate}`,

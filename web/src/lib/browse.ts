@@ -263,16 +263,13 @@ export async function browse(
     path.symbol &&
     path.side
   ) {
-    const dates = (
-      await distinctValues("tradeDate", {
-        exchange: path.exchange,
-        segment: path.segment,
-        symbol: path.symbol,
-        side: path.side,
-      })
-    )
-      .sort()
-      .reverse();
+    const dates = await distinctValues("tradeDate", {
+      exchange: path.exchange,
+      segment: path.segment,
+      symbol: path.symbol,
+      side: path.side,
+    });
+    // Ascending: oldest → newest (SQL already ORDERS ASC)
     const children: BrowseChild[] = dates.map((tradeDate) => ({
       id: tradeDate,
       label: tradeDate,
@@ -289,7 +286,7 @@ export async function browse(
       level,
       path,
       title: `${path.symbol} · ${path.side}`,
-      subtitle: `${dates.length} trading days archived.`,
+      subtitle: `${dates.length} trading days archived · oldest → newest.`,
       children,
       breadcrumbs: crumbs,
       canDownloadBundle: true,

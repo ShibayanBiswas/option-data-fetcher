@@ -4,6 +4,14 @@ import { findChains } from "./db";
 import { rowsToCsv } from "./storage";
 import type { BrowsePath, OptionChainDoc, OptionRow } from "./types";
 
+const ZIP_OPTS = {
+  type: "nodebuffer" as const,
+  compression: "DEFLATE" as const,
+  compressionOptions: { level: 1 },
+};
+
+const EXCEL_BATCH = 8;
+
 function filterFromPath(path: BrowsePath) {
   const filter: {
     exchange?: string;
@@ -46,7 +54,31 @@ function entryPath(doc: OptionChainDoc): string {
 }
 
 export async function loadDocs(path: BrowsePath): Promise<OptionChainDoc[]> {
-  return findChains(filterFromPath(path), { sortTradeDateDesc: true });
+  const isLeaf = Boolean(path.expiryDate);
+  return findChains(filterFromPath(path), {
+    sortTradeDateDesc: !isLeaf,
+    limit: isLeaf ? 1 : undefined,
+  });
+}
+
+async function docToExcelBuffer(doc: OptionChainDoc): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Chain");
+  if (doc.rows.length > 0) {
+    const columns = Object.keys(doc.rows[0]);
+    sheet.columns = columns.map((key) => ({ header: key, key, width: 14 }));
+    for (const row of doc.rows) {
+      sheet.addRow(row);
+    }
+    sheet.getRow(1).font = { bold: true, color: { argb: "FF7A1E2C" } };
+    sheet.getRow(1).fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFF5F0E6" },
+    };
+  }
+  const xlsx = await workbook.xlsx.writeBuffer();
+  return Buffer.from(xlsx);
 }
 
 export async function buildCsvZip(path: BrowsePath): Promise<{
@@ -61,7 +93,7 @@ export async function buildCsvZip(path: BrowsePath): Promise<{
   if (docs.length === 0) {
     zip.file("README.txt", "No option chain files matched this selection.");
   }
-  const buffer = Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+  const buffer = Buffer.from(await zip.generateAsync(ZIP_OPTS));
   return { buffer, filename: bundleName(path, "zip") };
 }
 
@@ -72,33 +104,24 @@ export async function buildExcelZip(path: BrowsePath): Promise<{
   const docs = await loadDocs(path);
   const zip = new JSZip();
 
-  for (const doc of docs) {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Chain");
-    if (doc.rows.length > 0) {
-      const columns = Object.keys(doc.rows[0]);
-      sheet.columns = columns.map((key) => ({ header: key, key, width: 14 }));
-      for (const row of doc.rows) {
-        sheet.addRow(row);
-      }
-      sheet.getRow(1).font = { bold: true, color: { argb: "FF7A1E2C" } };
-      sheet.getRow(1).fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFF5F0E6" },
-      };
-    }
-    const xlsx = await workbook.xlsx.writeBuffer();
-    const name = entryPath(doc).replace(/\.csv$/i, ".xlsx");
-    zip.file(name, Buffer.from(xlsx));
+  for (let i = 0; i < docs.length; i += EXCEL_BATCH) {
+    const batch = docs.slice(i, i + EXCEL_BATCH);
+    const buffers = await Promise.all(batch.map((doc) => docToExcelBuffer(doc)));
+    batch.forEach((doc, idx) => {
+      const name = entryPath(doc).replace(/\.csv$/i, ".xlsx");
+      zip.file(name, buffers[idx]);
+    });
   }
 
   if (docs.length === 0) {
     zip.file("README.txt", "No option chain files matched this selection.");
   }
 
-  const buffer = Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
-  return { buffer, filename: bundleName(path, "zip").replace(".zip", "_excel.zip") };
+  const buffer = Buffer.from(await zip.generateAsync(ZIP_OPTS));
+  return {
+    buffer,
+    filename: bundleName(path, "zip").replace(".zip", "_excel.zip"),
+  };
 }
 
 export async function buildLeafCsv(path: BrowsePath): Promise<{

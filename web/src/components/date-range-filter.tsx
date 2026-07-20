@@ -24,7 +24,7 @@ export function DateRangeFilter({
       <div className="date-range-label">
         <CalendarRange className="h-3.5 w-3.5" />
         <span>Trade dates</span>
-        <span className="date-range-hint">newest → oldest</span>
+        <span className="date-range-hint">oldest → newest</span>
       </div>
       <div className="date-range-controls">
         <label className="date-range-field">

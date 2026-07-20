@@ -18,7 +18,8 @@ type DeskFlowProps = {
   title?: string;
   subtitle?: string;
   roots: FlowNode[];
-  layout?: "tree" | "pipeline";
+  /** tree = classic nested list · map = full-width columns · pipeline = horizontal steps */
+  layout?: "tree" | "pipeline" | "map";
   className?: string;
 };
 
@@ -46,12 +47,14 @@ function FlowNodeCard({
   index,
   expanded,
   onToggle,
+  stretch = false,
 }: {
   node: FlowNode;
   depth: number;
   index: number;
   expanded: boolean;
   onToggle: () => void;
+  stretch?: boolean;
 }) {
   const hasKids = Boolean(node.children?.length);
 
@@ -65,7 +68,7 @@ function FlowNodeCard({
         stiffness: 170,
         damping: 18,
       }}
-      className={`${toneClass(node.tone)} flow-node-shell`}
+      className={`${toneClass(node.tone)} flow-node-shell ${stretch ? "flow-node-shell--stretch" : ""}`}
     >
       {hasKids ? (
         <button
@@ -115,7 +118,12 @@ function FlowBranch({
   const kids = node.children ?? [];
 
   return (
-    <li className="flow-branch">
+    <motion.li
+      className="flow-branch"
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.04, type: "spring", stiffness: 160, damping: 18 }}
+    >
       <FlowNodeCard
         node={node}
         depth={depth}
@@ -139,7 +147,86 @@ function FlowBranch({
           </motion.ul>
         ) : null}
       </AnimatePresence>
-    </li>
+    </motion.li>
+  );
+}
+
+function MapColumn({ node, index }: { node: FlowNode; index: number }) {
+  const [open, setOpen] = useState(true);
+  const kids = node.children ?? [];
+
+  return (
+    <motion.div
+      className="flow-map-col"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.06 + index * 0.05, type: "spring", stiffness: 160, damping: 18 }}
+    >
+      <FlowNodeCard
+        node={node}
+        depth={1}
+        index={index}
+        expanded={open}
+        onToggle={() => setOpen((v) => !v)}
+        stretch
+      />
+      <AnimatePresence initial={false}>
+        {open && kids.length > 0 ? (
+          <motion.ul
+            key="map-kids"
+            className="flow-map-kids"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22 }}
+          >
+            {kids.map((child, i) => (
+              <li key={child.id} className="flow-map-kid">
+                <FlowNodeCard
+                  node={child}
+                  depth={2}
+                  index={i}
+                  expanded={false}
+                  onToggle={() => undefined}
+                  stretch
+                />
+              </li>
+            ))}
+          </motion.ul>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+function FlowMap({ roots }: { roots: FlowNode[] }) {
+  const root = roots[0];
+  if (!root) return null;
+  const cols = root.children ?? [];
+
+  return (
+    <div className="flow-map">
+      <FlowNodeCard
+        node={root}
+        depth={0}
+        index={0}
+        expanded
+        onToggle={() => undefined}
+        stretch
+      />
+      {cols.length > 0 ? (
+        <div
+          className="flow-map-columns"
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(cols.length, 4)}, minmax(0, 1fr))`,
+          }}
+        >
+          {cols.map((col, i) => (
+            <MapColumn key={col.id} node={col} index={i} />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -219,6 +306,8 @@ export function DeskFlow({
             <PipelineStep key={node.id} node={node} index={i} total={flatPipeline.length} />
           ))}
         </div>
+      ) : layout === "map" ? (
+        <FlowMap roots={roots} />
       ) : (
         <ul className="flow-forest">
           {roots.map((root, i) => (

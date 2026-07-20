@@ -12,14 +12,12 @@ import {
   type SetStateAction,
 } from "react";
 import {
-  ChevronDown,
   ChevronRight,
   FileSpreadsheet,
   Folder,
   FolderOpen,
-  PanelLeftClose,
-  PanelLeft,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { TreeNode } from "@/lib/tree";
 import { sectorForSymbol } from "@/lib/sectors";
 
@@ -103,11 +101,13 @@ function TreeBranch({
             className="archive-tree-chevron"
             onClick={toggle}
           >
-            {open ? (
-              <ChevronDown className="h-3.5 w-3.5" />
-            ) : (
+            <motion.span
+              animate={{ rotate: open ? 90 : 0 }}
+              transition={{ type: "spring", stiffness: 380, damping: 26 }}
+              className="inline-flex"
+            >
               <ChevronRight className="h-3.5 w-3.5" />
-            )}
+            </motion.span>
           </button>
         ) : (
           <span className="inline-flex h-6 w-6 items-center justify-center opacity-45">
@@ -138,43 +138,56 @@ function TreeBranch({
         </Link>
       </div>
 
-      {open && node.hasChildren && (
-        <div className="ml-3 border-l border-[var(--ar-border)] pl-1">
-          {loading && (
-            <div
-              className="font-ui py-1.5 text-[11px] text-[var(--ar-subtle)]"
-              style={{ paddingLeft: 22 }}
-            >
-              Loading…
-            </div>
-          )}
-          {children?.map((child) => (
-            <TreeBranch
-              key={nodeKey(child)}
-              node={child}
-              depth={depth + 1}
-              openMap={openMap}
-              setOpenMap={setOpenMap}
-              cache={cache}
-              ensureChildren={ensureChildren}
-              onNavigate={onNavigate}
-            />
-          ))}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {open && node.hasChildren && (
+          <motion.div
+            className="ml-3 border-l border-[var(--ar-border)] pl-1"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {loading && (
+              <div
+                className="font-ui py-1.5 text-[11px] text-[var(--ar-subtle)]"
+                style={{ paddingLeft: 22 }}
+              >
+                <motion.span
+                  animate={{ opacity: [0.45, 1, 0.45] }}
+                  transition={{ repeat: Infinity, duration: 1.2 }}
+                >
+                  Loading…
+                </motion.span>
+              </div>
+            )}
+            {children?.map((child, i) => (
+              <motion.div
+                key={nodeKey(child)}
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: Math.min(i * 0.02, 0.2) }}
+              >
+                <TreeBranch
+                  node={child}
+                  depth={depth + 1}
+                  openMap={openMap}
+                  setOpenMap={setOpenMap}
+                  cache={cache}
+                  ensureChildren={ensureChildren}
+                  onNavigate={onNavigate}
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 export function ArchiveSidebar({
-  collapsed,
-  onToggleCollapse,
-  mobileOpen,
   onNavigate,
 }: {
-  collapsed?: boolean;
-  onToggleCollapse?: () => void;
-  mobileOpen?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -187,6 +200,7 @@ export function ArchiveSidebar({
 
   const [cache, setCache] = useState<Cache>({});
   const cacheRef = useRef<Cache>({});
+  const inflightRef = useRef<Record<string, Promise<void>>>({});
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
   const [roots, setRoots] = useState<TreeNode[] | null>(null);
 
@@ -194,15 +208,27 @@ export function ArchiveSidebar({
     async (treePath: string, sectorFilter?: string | null) => {
       const key = cacheKey(treePath, sectorFilter);
       if (cacheRef.current[key]) return;
+      const existing = inflightRef.current[key];
+      if (existing) {
+        await existing;
+        return;
+      }
 
-      const qs = new URLSearchParams();
-      if (treePath) qs.set("path", treePath);
-      if (sectorFilter) qs.set("sector", sectorFilter);
-      const res = await fetch(`/api/tree?${qs.toString()}`);
-      const json = await res.json();
-      const children = (json.children ?? []) as TreeNode[];
-      cacheRef.current = { ...cacheRef.current, [key]: children };
-      setCache(cacheRef.current);
+      const run = (async () => {
+        const qs = new URLSearchParams();
+        if (treePath) qs.set("path", treePath);
+        if (sectorFilter) qs.set("sector", sectorFilter);
+        const res = await fetch(`/api/tree?${qs.toString()}`);
+        const json = await res.json();
+        const children = (json.children ?? []) as TreeNode[];
+        cacheRef.current = { ...cacheRef.current, [key]: children };
+        setCache({ ...cacheRef.current });
+      })().finally(() => {
+        delete inflightRef.current[key];
+      });
+
+      inflightRef.current[key] = run;
+      await run;
     },
     []
   );
@@ -217,7 +243,7 @@ export function ArchiveSidebar({
         setRoots(children);
         const key = cacheKey("");
         cacheRef.current = { ...cacheRef.current, [key]: children };
-        setCache(cacheRef.current);
+        setCache({ ...cacheRef.current });
       })
       .catch(() => {
         if (!cancelled) setRoots([]);
@@ -227,8 +253,7 @@ export function ArchiveSidebar({
     };
   }, []);
 
-  // Default: open NSE/BSE → Index Options + Stock Options (not daily folders).
-  // Deep links also open the active symbol/side/sector chain — never trade-date leaves.
+  // Default: open NSE/BSE → Index/Stock. Never open CALL/PUT (no date flood).
   useEffect(() => {
     let cancelled = false;
     async function expandPath() {
@@ -238,20 +263,28 @@ export function ArchiveSidebar({
       await ensureChildren("");
       const rootKids = cacheRef.current[cacheKey("")] ?? [];
 
-      for (const ex of rootKids) {
-        if (ex.kind !== "exchange") continue;
-        nextOpen[nodeKey(ex)] = true;
-        await ensureChildren(ex.treePath);
-        const segs = cacheRef.current[cacheKey(ex.treePath)] ?? [];
-        for (const seg of segs) {
-          if (seg.kind !== "segment") continue;
-          nextOpen[nodeKey(seg)] = true;
-          await ensureChildren(seg.treePath);
-        }
-      }
+      // Parallel: open both exchanges + load their segments
+      await Promise.all(
+        rootKids
+          .filter((ex) => ex.kind === "exchange")
+          .map(async (ex) => {
+            nextOpen[nodeKey(ex)] = true;
+            await ensureChildren(ex.treePath);
+            const segs = cacheRef.current[cacheKey(ex.treePath)] ?? [];
+            await Promise.all(
+              segs
+                .filter((seg) => seg.kind === "segment")
+                .map(async (seg) => {
+                  nextOpen[nodeKey(seg)] = true;
+                  // Prefetch segment children (symbols / sectors) in parallel
+                  await ensureChildren(seg.treePath);
+                })
+            );
+          })
+      );
 
-      // Walk active path through side only (index 0..3) — skip tradeDate + expiry
-      const folderDepth = Math.min(parts.length, 4);
+      // Deep path: open through symbol (+ sector) only — never side/tradeDate
+      const folderDepth = Math.min(parts.length, 3);
       for (let i = 1; i < folderDepth; i++) {
         const parentPath = parts.slice(0, i).join("/");
         await ensureChildren(parentPath);
@@ -263,12 +296,16 @@ export function ArchiveSidebar({
             const symSector = sector ?? sectorForSymbol(parts[2]);
             nextOpen[`${parts[0]}-STOCK`] = true;
             nextOpen[`${parts[0]}/STOCK::sector::${symSector}`] = true;
-            await ensureChildren(`${parts[0]}/STOCK`);
-            await ensureChildren(`${parts[0]}/STOCK`, symSector);
+            await Promise.all([
+              ensureChildren(`${parts[0]}/STOCK`),
+              ensureChildren(`${parts[0]}/STOCK`, symSector),
+            ]);
           }
           nextOpen[`${parts[0]}-${parts[1]}-${parts[2]}`] = true;
-        } else if (i === 3) {
-          nextOpen[`${parts[0]}-${parts[1]}-${parts[2]}-${parts[3]}`] = true;
+          // Prefetch CALL/PUT labels under the symbol (tiny payload)
+          await ensureChildren(
+            `${parts[0]}/${parts[1]}/${parts[2]}`
+          );
         }
       }
 
@@ -276,8 +313,10 @@ export function ArchiveSidebar({
         nextOpen[parts[0]] = true;
         nextOpen[`${parts[0]}-STOCK`] = true;
         nextOpen[`${parts[0]}/STOCK::sector::${sector}`] = true;
-        await ensureChildren(`${parts[0]}/STOCK`);
-        await ensureChildren(`${parts[0]}/STOCK`, sector);
+        await Promise.all([
+          ensureChildren(`${parts[0]}/STOCK`),
+          ensureChildren(`${parts[0]}/STOCK`, sector),
+        ]);
       }
 
       if (!cancelled) setOpenMap(nextOpen);
@@ -289,85 +328,46 @@ export function ArchiveSidebar({
   }, [currentTreePath, sector, ensureChildren]);
 
   return (
-    <aside
-      className={`archive-sidebar ${collapsed ? "archive-sidebar-collapsed" : ""} ${
-        mobileOpen ? "archive-sidebar-open" : ""
-      }`}
-    >
+    <aside className="archive-sidebar">
       <div className="archive-sidebar-toolbar">
-        {!collapsed && (
-          <div className="min-w-0">
-            <div className="label-chip">Archive</div>
-            <div className="font-serif text-base text-[var(--ar-ink)]">File tree</div>
-          </div>
-        )}
-        {onToggleCollapse && (
-          <button
-            type="button"
-            className="dashboard-icon-btn"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={onToggleCollapse}
-          >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4" />
-            )}
-          </button>
-        )}
+        <div className="min-w-0">
+          <div className="label-chip">Archive</div>
+          <div className="font-serif text-base text-[var(--ar-ink)]">File tree</div>
+        </div>
       </div>
 
       <div className="archive-sidebar-scroll scrollbar-thin">
-        {!collapsed && (
-          <Link
-            href="/browse"
-            className={`archive-tree-row mb-2 flex items-center gap-2 rounded-lg px-3 py-2 no-underline ${
-              pathname === "/browse" ? "archive-tree-row-active" : ""
-            }`}
-            onClick={onNavigate}
-          >
-            <Folder className="archive-tree-icon" />
-            <span className="sidebar-label truncate text-[13px] font-medium text-[var(--ar-ink)]">
-              Root
-            </span>
-          </Link>
-        )}
+        <Link
+          href="/browse"
+          className={`archive-tree-row mb-2 flex items-center gap-2 rounded-lg px-3 py-2 no-underline ${
+            pathname === "/browse" ? "archive-tree-row-active" : ""
+          }`}
+          onClick={onNavigate}
+        >
+          <Folder className="archive-tree-icon" />
+          <span className="sidebar-label truncate text-[13px] font-medium text-[var(--ar-ink)]">
+            Root
+          </span>
+        </Link>
 
-        {roots === null && !collapsed && (
+        {roots === null && (
           <p className="font-ui px-3 py-2 text-xs text-[var(--ar-subtle)]">
             Loading tree…
           </p>
         )}
 
-        {!collapsed &&
-          roots?.map((node) => (
-            <TreeBranch
-              key={nodeKey(node)}
-              node={node}
-              depth={0}
-              openMap={openMap}
-              setOpenMap={setOpenMap}
-              cache={cache}
-              ensureChildren={ensureChildren}
-              onNavigate={onNavigate}
-            />
-          ))}
-
-        {collapsed && (
-          <div className="flex flex-col items-center gap-2 pt-2">
-            {(roots ?? []).map((n) => (
-              <Link
-                key={n.id}
-                href={n.href}
-                title={n.label}
-                className="dashboard-icon-btn"
-                onClick={onNavigate}
-              >
-                <Folder className="h-4 w-4" />
-              </Link>
-            ))}
-          </div>
-        )}
+        {roots?.map((node) => (
+          <TreeBranch
+            key={nodeKey(node)}
+            node={node}
+            depth={0}
+            openMap={openMap}
+            setOpenMap={setOpenMap}
+            cache={cache}
+            ensureChildren={ensureChildren}
+            onNavigate={onNavigate}
+          />
+        ))}
       </div>
     </aside>
   );

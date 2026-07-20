@@ -112,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         syncing={syncing}
         onSearch={() => setSearchOpen(true)}
       />
-      <main className="relative z-10 flex min-h-0 w-full flex-1 flex-col px-2 pb-2 pt-2 sm:px-3 lg:px-4">
+      <main className="relative z-10 flex min-h-0 w-full flex-1 flex-col px-2 pb-0 pt-2 sm:px-3 lg:px-4">
         <BrowseShell>{children}</BrowseShell>
       </main>
       <SiteFooter />

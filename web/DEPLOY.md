@@ -175,7 +175,7 @@ NSE | BSE
  └── Index Options | Stock Options | Other Securities
       └── Symbol (stocks under sector folders)
            └── CALL | PUT
-                └── Trade date (newest → oldest; calendar filter)
+                └── Trade date (oldest → newest; calendar filter)
                      └── Expiry file (strike ladder)
 ```
 
@@ -216,6 +216,74 @@ Open http://localhost:3000
 | Huge DB / Turso quota | Prefer `seed:max` (INDEX full + limited STOCK days) |
 | Buttons looked duplicated | Fixed — expiry pages show one CSV/Excel pair in the header only |
 | Sidebar and page scrolled together | Fixed — each pane scrolls on its own inside the desk layout |
+| Downloads slow or time out | Download a **leaf** expiry file first (single CSV/Excel). For big folder zips, pick a narrower folder (symbol + side) instead of whole exchange |
+| Excel zip very slow | CSV zip is faster — Excel builds workbooks in parallel but still take longer on large folders |
+
+---
+
+## Step 8 — Post-deploy checklist (5 minutes)
+
+Run through this once after every new deploy:
+
+1. **Home** — KPI cards show document count and latest trade date (not zero / blank).
+2. **Browse → NSE → Index Options** — sidebar expands; main panel lists symbols without long spinners.
+3. **Pick a symbol → CALL** — trade dates appear **oldest → newest**; calendar filter works.
+4. **Open one expiry** — strike table loads; **CSV** and **Excel** download (green check flash = started OK).
+5. **Folder zip** — go up one level and click **CSV Zip**; browser download bar should start (large zips stream — do not refresh).
+6. **Sync Today** — on a trading day after ~5 PM IST, should return synced or already_synced.
+7. **Cron** — Vercel → Settings → Cron Jobs shows `30 11 * * 1-5` hitting `/api/cron/daily-sync`.
+
+---
+
+## Performance & downloads (production)
+
+The app is tuned for Vercel + Turso:
+
+| Layer | What we do |
+|-------|------------|
+| **Browse / tree APIs** | 30s private cache + DB distinct-value cache (45s) |
+| **Sidebar** | Does not load hundreds of trade dates — only folder levels |
+| **Downloads (leaf)** | Single-file CSV/Excel; fetched with error handling + 1h cache |
+| **Downloads (folder zip)** | Browser **native stream** (no full zip in JavaScript memory); parallel Excel generation server-side; fast zip compression |
+| **Static assets** | Brand logos cached 1 year via `vercel.json` |
+
+### Tips for fast downloads after go-live
+
+- **Prefer CSV Zip** over Excel Zip for large folders (same data, less CPU).
+- **Narrow the path** — e.g. `NSE/INDEX/NIFTY/CALL` instead of the whole `NSE` tree.
+- **Use the calendar filter** on trade-date lists, then drill into one session before bulk export.
+- **Turso region**: create the DB in a region close to Vercel (e.g. **AWS Mumbai / ap-south-1** if available) to cut query latency.
+- **Vercel plan**: download routes allow up to **60s** server time — extremely wide zips may need a smaller selection.
+
+### Redeploy after code changes
+
+```bash
+git add .
+git commit -m "your message"
+git push origin main
+```
+
+Vercel auto-rebuilds on push to `main`. No manual restart needed.
+
+---
+
+## Environment variables (reference)
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `LIBSQL_URL` | Yes (prod) | Turso database URL |
+| `LIBSQL_AUTH_TOKEN` | Yes (prod) | Turso auth token |
+| `CRON_SECRET` | Yes (prod) | Bearer token for `/api/cron/daily-sync` |
+| `SYNC_SECRET` | Yes (prod) | Protects manual sync API |
+| *(none)* | Dev only | Omit Turso vars → uses `web/data/option_chain.db` |
+
+Generate secrets (example):
+
+```bash
+openssl rand -hex 32
+```
+
+Use a different value for `CRON_SECRET` and `SYNC_SECRET`.
 
 ---
 

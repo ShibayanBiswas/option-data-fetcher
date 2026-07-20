@@ -11,6 +11,9 @@ import {
   CalendarClock,
   Network,
   Search,
+  Layers,
+  Map,
+  RefreshCw,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { DeskFlow, type FlowNode } from "@/components/desk-flow";
@@ -30,57 +33,102 @@ type Status = {
 const features = [
   {
     icon: FolderTree,
-    title: "Desk-grade hierarchy",
-    body: "NSE and BSE, then Index, Stocks, or Other, then symbol, CALL or PUT, trade date, and expiry strike ladders.",
+    kicker: "01 · Structure",
+    title: "Desk-grade",
+    accent: "hierarchy",
+    body: "NSE & BSE → Index, Stocks, or Other → symbol → CALL / PUT → trade date → expiry strike ladders.",
     href: "/schema",
   },
   {
     icon: CloudDownload,
-    title: "Zip at every folder",
-    body: "Download CSV or Excel zips for any level. Leaf expiry files download as plain CSV or Excel.",
+    kicker: "02 · Export",
+    title: "Zip at every",
+    accent: "folder",
+    body: "CSV or Excel zips from any folder. Leaf expiry files download as plain CSV or Excel.",
     href: "/browse",
   },
   {
     icon: Database,
-    title: "SQLite archive sync",
-    body: "Chains persist as local SQLite in development and Turso (libSQL) on Vercel — same SQL, sync-ready.",
+    kicker: "03 · Storage",
+    title: "SQLite archive",
+    accent: "sync",
+    body: "Local SQLite in development · Turso (libSQL) on Vercel — same SQL, sync-ready.",
     href: "/schema",
   },
   {
     icon: CalendarClock,
-    title: "Weekday auto-refresh",
-    body: "Scheduled job pulls the latest bhavcopy after market close. No separate backend host required.",
+    kicker: "04 · Schedule",
+    title: "Weekday",
+    accent: "auto-refresh",
+    body: "Cron pulls the latest bhavcopy after market close. No separate backend host required.",
     href: "/#pipeline",
   },
   {
     icon: Network,
-    title: "Schema on the desk",
+    kicker: "05 · Maps",
+    title: "Schema on",
+    accent: "the desk",
     body: "Interactive maps for hierarchy, FinInstrmTp segregation, and the ingest pipeline.",
     href: "/schema",
   },
   {
     icon: Search,
-    title: "Smart search",
-    body: "Press ⌘K to jump through exchanges and segments — scroll stops at BSE · Other Securities.",
+    kicker: "06 · Jump",
+    title: "Smart",
+    accent: "search",
+    body: "Press ⌘K to jump exchanges & segments — scroll stops at BSE · Other Securities.",
     href: "/browse",
   },
 ];
 
 const PIPELINE_STEPS = [
   {
-    n: "1",
-    title: "Fetch NSE zip and BSE CSV bhavcopy",
-    body: "Pull the latest UDiFF F&O session files from both exchanges after market settlement.",
+    n: "01",
+    kicker: "Ingest",
+    title: "Fetch",
+    accent: "bhavcopy",
+    body: "Pull the latest UDiFF F&O session files from NSE zip and BSE CSV after settlement.",
   },
   {
-    n: "2",
-    title: "Segregate Index, Stock, Other · CALL, PUT · expiry",
-    body: "Classify by FinInstrmTp, split CE/PE, group by underlying and expiry, sort strikes.",
+    n: "02",
+    kicker: "Classify",
+    title: "Segregate",
+    accent: "the book",
+    body: "FinInstrmTp → Index · Stock · Other. Split CE/PE, group by underlying & expiry, sort strikes.",
   },
   {
-    n: "3",
-    title: "Upsert SQLite and expose browse plus download APIs",
-    body: "Write lean chains to SQLite (Turso on Vercel), mirror full CSVs locally, serve the desk UI.",
+    n: "03",
+    kicker: "Serve",
+    title: "Persist",
+    accent: "& expose",
+    body: "Lean chains in SQLite / Turso, full CSVs locally, then browse and download APIs.",
+  },
+];
+
+const QUICK_JUMPS = [
+  {
+    href: "/browse",
+    icon: Layers,
+    title: "Open Archive",
+    body: "File tree · NSE & BSE",
+  },
+  {
+    href: "/schema",
+    icon: Map,
+    title: "Schema map",
+    body: "Hierarchy · sectors · pipeline",
+  },
+  {
+    href: "/browse/NSE/INDEX",
+    icon: FolderTree,
+    title: "NSE Index",
+    body: "NIFTY & index options",
+  },
+  {
+    href: "/browse/BSE/INDEX",
+    icon: Database,
+    title: "BSE Index",
+    body: "SENSEX & index options",
   },
 ];
 
@@ -109,12 +157,30 @@ const NAV_FLOW: FlowNode[] = [
         meta: "Maps",
         tone: "accent",
         href: "/schema",
+        children: [
+          { id: "levels", label: "Folder levels", tone: "leaf", href: "/schema" },
+          { id: "sectors", label: "Stock sectors", tone: "leaf", href: "/schema#sectors" },
+        ],
       },
       {
         id: "sync",
         label: "Sync Today",
         meta: "Header action",
         tone: "leaf",
+        children: [
+          {
+            id: "coverage",
+            label: "Archive coverage",
+            tone: "leaf",
+            href: "/#coverage",
+          },
+          {
+            id: "pipeline-jump",
+            label: "Ingest pipeline",
+            tone: "leaf",
+            href: "/#pipeline",
+          },
+        ],
       },
     ],
   },
@@ -132,33 +198,57 @@ function HomeBody() {
 
   return (
     <>
-      <section className="relative overflow-hidden rounded-3xl glass px-6 py-12 sm:px-10 lg:px-12">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="relative z-10 max-w-4xl"
-        >
-          <h1 className="font-serif text-4xl leading-tight text-[var(--ar-ink)] sm:text-6xl">
-            Option Chain <span className="shine-text">Archive</span>
-          </h1>
-          <p className="mt-5 max-w-2xl font-ui text-base text-[var(--ar-muted)] sm:text-lg">
-            Historical Indian option chains from NSE and BSE bhavcopy — cleaned,
-            CALL and PUT segregated, strike-sorted, sector-tagged, and ready for
-            backtesting downloads.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/browse" className="btn-gold inline-flex items-center gap-2 no-underline">
-              Open Archive <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/schema" className="btn-ghost inline-flex items-center gap-2 no-underline">
-              Schema map
-            </Link>
-            <a href="#coverage" className="btn-maroon inline-flex items-center gap-2 no-underline">
-              Archive coverage
-            </a>
-          </div>
-        </motion.div>
+      <section className="relative overflow-hidden rounded-3xl glass px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-stretch">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+            className="min-w-0"
+          >
+            <h1 className="font-serif text-4xl leading-tight text-[var(--ar-ink)] sm:text-5xl xl:text-6xl">
+              Option Chain <span className="shine-text">Archive</span>
+            </h1>
+            <p className="mt-4 max-w-xl font-ui text-base text-[var(--ar-muted)] sm:text-lg">
+              Historical Indian option chains from NSE and BSE bhavcopy — cleaned,
+              CALL and PUT segregated, strike-sorted, sector-tagged, and ready for
+              backtesting downloads.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/browse" className="btn-gold inline-flex items-center gap-2 no-underline">
+                Open Archive <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/schema" className="btn-ghost inline-flex items-center gap-2 no-underline">
+                Schema map
+              </Link>
+              <a href="#coverage" className="btn-maroon inline-flex items-center gap-2 no-underline">
+                Archive coverage
+              </a>
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="hero-quick-grid"
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.12, duration: 0.55 }}
+          >
+            {QUICK_JUMPS.map((q, i) => (
+              <Link
+                key={q.href}
+                href={q.href}
+                className="hero-quick-card no-underline"
+                style={{ animationDelay: `${i * 0.05}s` }}
+              >
+                <span className="hero-quick-icon" aria-hidden>
+                  <q.icon className="h-4 w-4" />
+                </span>
+                <span className="hero-quick-title">{q.title}</span>
+                <span className="hero-quick-body">{q.body}</span>
+              </Link>
+            ))}
+          </motion.div>
+        </div>
 
         <motion.div
           aria-hidden
@@ -174,15 +264,16 @@ function HomeBody() {
         />
       </section>
 
-      <section className="mt-6">
+      <section className="mt-5">
         <DeskFlow
           title="Desk navigation map"
-          subtitle="Click a node to jump — sidebar on every page mirrors this tree."
+          subtitle="Full-width jump map — every node opens Browse, Schema, or a section below. Sidebar mirrors the archive tree."
           roots={NAV_FLOW}
+          layout="map"
         />
       </section>
 
-      <section id="coverage" className="mt-6">
+      <section id="coverage" className="mt-5 scroll-mt-4">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <p className="label-chip">Live archive</p>
@@ -222,6 +313,16 @@ function HomeBody() {
             value={(status?.segments?.STOCK ?? 0).toLocaleString()}
             delay={0.2}
           />
+          <SexyCard delay={0.23} className="!p-4 kpi-sync-tile" href="/browse">
+            <div className="kpi-card-label">Next step</div>
+            <div className="mt-1.5 flex items-center gap-2 font-ui text-sm font-semibold text-[var(--ar-ink)]">
+              <RefreshCw className="h-3.5 w-3.5 text-[var(--ar-gold)]" />
+              Sync Today in header
+            </div>
+            <p className="mt-1 font-ui text-[11px] text-[var(--ar-subtle)]">
+              Pull the latest bhavcopy after market close
+            </p>
+          </SexyCard>
         </div>
         <p className="mt-3 font-ui text-xs text-[var(--ar-subtle)]">
           UDiFF bhavcopy history is available from mid-2024 onward. Use Sync Today
@@ -230,45 +331,55 @@ function HomeBody() {
         </p>
       </section>
 
-      <div className="mt-6">
+      <div className="mt-5">
         <HScrollSection
           eyebrow="Capabilities"
           title="What the desk does"
-          subtitle="Swipe sideways — each card is sized to its content."
+          subtitle="Six desk capabilities — swipe on small screens, full row on wide."
+          cardSize="lg"
+          fill
         >
           {features.map((f, i) => (
-            <HScrollCard key={f.title} size="lg" href={f.href} delay={i * 0.04}>
-              <div className="mb-2 inline-flex rounded-lg border border-[var(--ar-border)] bg-[var(--ar-panel)] p-1.5 text-[var(--ar-ink)]">
-                <f.icon className="h-4 w-4" />
+            <HScrollCard key={f.kicker} size="lg" href={f.href} delay={i * 0.04}>
+              <div className="desk-card-top">
+                <span className="desk-card-kicker">{f.kicker}</span>
+                <span className="desk-card-icon" aria-hidden>
+                  <f.icon className="h-4 w-4" />
+                </span>
               </div>
-              <h2 className="font-serif text-lg text-[var(--ar-ink)]">{f.title}</h2>
-              <p className="mt-1.5 max-w-[16rem] font-ui text-sm leading-snug text-[var(--ar-muted)]">
-                {f.body}
-              </p>
+              <h2 className="desk-card-title">
+                {f.title}{" "}
+                <span className="desk-card-accent">{f.accent}</span>
+              </h2>
+              <p className="desk-card-body">{f.body}</p>
             </HScrollCard>
           ))}
         </HScrollSection>
       </div>
 
-      <section id="pipeline" className="mt-6">
+      <section id="pipeline" className="mt-4 scroll-mt-4">
         <HScrollSection
           eyebrow="Pipeline"
           title="How the desk builds the book"
           subtitle="Daily F&O UDiFF bhavcopy → segregate → SQLite / Turso → browse & download."
+          cardSize="lg"
+          fill
         >
           {PIPELINE_STEPS.map((step, i) => (
             <HScrollCard key={step.n} size="lg" delay={0.05 + i * 0.06}>
-              <div className="pipeline-step-index">{step.n}</div>
-              <h3 className="mt-2 font-serif text-base leading-snug text-[var(--ar-ink)]">
-                {step.title}
+              <div className="desk-card-top">
+                <span className="desk-card-kicker">{step.kicker}</span>
+                <span className="desk-card-step">{step.n}</span>
+              </div>
+              <h3 className="desk-card-title">
+                {step.title}{" "}
+                <span className="desk-card-accent">{step.accent}</span>
               </h3>
-              <p className="mt-1.5 max-w-[15rem] font-ui text-sm leading-snug text-[var(--ar-muted)]">
-                {step.body}
-              </p>
+              <p className="desk-card-body">{step.body}</p>
             </HScrollCard>
           ))}
         </HScrollSection>
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-3 flex flex-wrap gap-3">
           <Link href="/browse" className="btn-maroon inline-flex items-center gap-2 no-underline">
             Browse NSE and BSE <ArrowRight className="h-4 w-4" />
           </Link>

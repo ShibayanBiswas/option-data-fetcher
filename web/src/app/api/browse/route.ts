@@ -15,7 +15,14 @@ export async function GET(request: NextRequest) {
     const browsePath = pathFromSegments(segments);
     const sector = request.nextUrl.searchParams.get("sector");
     const data = await browse(browsePath, { sector });
-    return NextResponse.json(data);
+    const isLeaf = Boolean(browsePath.expiryDate);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": isLeaf
+          ? "private, max-age=60, stale-while-revalidate=120"
+          : "private, max-age=20, stale-while-revalidate=40",
+      },
+    });
   } catch (err) {
     return NextResponse.json(
       {

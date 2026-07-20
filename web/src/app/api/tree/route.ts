@@ -9,7 +9,14 @@ export async function GET(request: NextRequest) {
     const path = request.nextUrl.searchParams.get("path") ?? "";
     const sector = request.nextUrl.searchParams.get("sector");
     const children = await getTreeChildren(path, sector);
-    return NextResponse.json({ path, sector, children });
+    return NextResponse.json(
+      { path, sector, children },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      }
+    );
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Tree failed", children: [] },

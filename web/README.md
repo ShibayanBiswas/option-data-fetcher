@@ -21,19 +21,21 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
 Short version:
 
 1. Root Directory on Vercel = **`web`**
-2. Create a Turso database
+2. Create a Turso database (prefer a region near your users)
 3. Set `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`, `CRON_SECRET`, `SYNC_SECRET`
 4. Seed Turso once (`npm run seed:max` or `seed:fresh` with Turso env set)
 5. Weekday cron at 11:30 UTC hits `/api/cron/daily-sync`
+6. Smoke-test Browse + CSV/Excel downloads after deploy
 
 ## What you get
 
-- Left **file tree** (Index Options + Stock Options open by default; daily folders stay closed until you open them)
+- Left **file tree** (Index Options + Stock Options open by default; CALL/PUT are leaves — trade dates load in the main panel only)
 - Right panel scrolls **on its own** (independent from the sidebar)
-- Trade-date lists: **newest → oldest**, with a **calendar range** filter (full range by default)
-- One CSV / Excel download control per page (no duplicates on strike tables)
-- Horizontal scroll card rails on Home + Schema
-- Interactive exchange flowchart with working links and tree lines
+- Trade-date lists: **oldest → newest**, with a **calendar range** filter
+- One CSV / Excel download control per page (folder zips stream in the browser)
+- Home: full-width **desk navigation map**, coverage KPIs, capabilities + pipeline grids
+- Schema: full-width **exchange map**, NSE|BSE pair links on sectors & segregation
+- Motion: page transitions, sidebar expand, download success flash (respects reduced-motion)
 - ⌘K / Ctrl+K search
 - Sync Today + weekday auto-refresh
 
@@ -44,11 +46,21 @@ NSE | BSE
  └── INDEX | STOCK | OTHER
       └── Symbol (STOCK grouped by sector)
            └── CALL | PUT
-                └── Trade date
+                └── Trade date (oldest → newest)
                      └── expiry_date_YYYY-MM-DD
 ```
 
 Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OTHER**.
+
+## Performance notes
+
+| Area | Behaviour |
+|------|-----------|
+| Tree / browse APIs | Short private cache + distinct-value cache |
+| Sidebar | Does not load hundreds of trade dates |
+| Folder zip download | Native browser stream (not buffered in JS) |
+| Excel zip | Parallel workbook build; prefer CSV Zip for large folders |
+| Leaf download | Single file + 1h cache headers |
 
 ## Scripts
 
