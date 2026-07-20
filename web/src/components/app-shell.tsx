@@ -111,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         syncing={syncing}
         onSearch={() => setSearchOpen(true)}
       />
-      <main className="relative z-10 mx-auto w-full max-w-full flex-1 px-4 py-5 lg:px-6">
+      <main className="relative z-10 mx-auto w-full max-w-full flex-1 px-4 py-4 lg:px-6">
         {children}
       </main>
       <SiteFooter />

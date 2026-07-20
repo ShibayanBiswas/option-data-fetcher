@@ -391,3 +391,204 @@ body {
   background: color-mix(in srgb, var(--ar-gold) 10%, var(--ar-panel));
   color: var(--ar-ink);
 }
+
+/* —— Archive browse shell (SP Workstation–inspired) —— */
+.archive-shell {
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 76px;
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-height: calc(100dvh - 7.5rem);
+  width: 100%;
+  border: 1px solid var(--ar-border);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--ar-surface) 88%, transparent);
+  box-shadow: var(--ar-shadow);
+  transition: grid-template-columns 0.25s ease;
+}
+
+.archive-shell-collapsed {
+  grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+}
+
+.archive-sidebar {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--ar-border);
+  background: color-mix(in srgb, var(--ar-surface) 94%, transparent);
+  backdrop-filter: blur(16px);
+  min-width: 0;
+  z-index: 20;
+}
+
+.archive-sidebar-collapsed .sidebar-label,
+.archive-sidebar-collapsed .label-chip,
+.archive-sidebar-collapsed .font-serif {
+  display: none;
+}
+
+.archive-sidebar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid var(--ar-border);
+  min-height: 3.5rem;
+}
+
+.archive-sidebar-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 0.5rem 0.4rem 1rem;
+}
+
+.archive-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: color-mix(in srgb, var(--ar-panel) 55%, transparent);
+}
+
+.archive-main-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem 1rem 1.25rem;
+}
+
+.archive-mobile-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--ar-border);
+  background: var(--ar-surface);
+}
+
+.dashboard-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--ar-border);
+  background: var(--ar-panel);
+  color: var(--ar-ink);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dashboard-icon-btn:hover {
+  border-color: var(--ar-gold);
+  background: color-mix(in srgb, var(--ar-gold) 12%, var(--ar-panel));
+}
+
+.archive-tree-row {
+  color: var(--ar-subtle);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.archive-tree-row:hover {
+  background: var(--ar-panel);
+  color: var(--ar-ink);
+}
+
+.archive-tree-row-active {
+  background: color-mix(in srgb, var(--ar-gold) 18%, transparent);
+  color: var(--ar-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ar-gold) 35%, var(--ar-border));
+}
+
+.archive-tree-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0.35rem;
+  flex-shrink: 0;
+}
+
+.archive-tree-chevron:hover {
+  background: color-mix(in srgb, var(--ar-gold) 14%, transparent);
+}
+
+.archive-tree-link {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.4rem 0.35rem 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: inherit;
+  text-decoration: none;
+}
+
+.archive-tree-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  color: var(--ar-gold-dark);
+}
+
+html.dark .archive-tree-icon {
+  color: var(--ar-gold);
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ar-gold) 55%, transparent) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--ar-gold) 45%, transparent);
+  border-radius: 999px;
+}
+
+.archive-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .archive-shell,
+  .archive-shell-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: calc(100dvh - 8rem);
+  }
+
+  .archive-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(86vw, 300px);
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    box-shadow: var(--ar-shadow);
+  }
+
+  .archive-sidebar-open {
+    transform: translateX(0);
+  }
+
+  .archive-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    border: none;
+    background: color-mix(in srgb, var(--ar-ink) 45%, transparent);
+    backdrop-filter: blur(2px);
+  }
+}

@@ -27,7 +27,7 @@ Segregation uses UDiFF `FinInstrmTp`: **IDO → INDEX**, **STO → STOCK**, anyt
 
 ## Desk features
 
-- Full-width layout aligned to the Primary SP Dashboard look
+- Full-width layout with a **left file-tree sidebar** (GitHub-style vertical branching)
 - Smart search (`⌘K`) across exchanges, sectors, indices, and stocks
 - Stock sector grouping on the STOCK browse level
 - Schema page documenting the archive tree and field map
