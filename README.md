@@ -14,8 +14,8 @@ npm run dev
 Open http://localhost:3000
 
 - **Browse** — left file tree + right panel; root shows NSE | BSE exchange picker
-- **Schema** — full-width maps + card rails (fill or horizontal scroll)
-- **Home** — coverage KPIs, desk navigation map, capabilities, pipeline
+- **Schema** — horizontal card rails + exchange flowchart
+- **Home** — coverage KPIs, desk navigation map, **horizontal** capability/pipeline cards
 - **⌘K / Ctrl+K** — jump search
 - **Sync Today** — pull the latest bhavcopy session
 

@@ -157,7 +157,7 @@ export async function browse(
       subtitle: `${path.exchange} derivatives — Index Options and Stock Options.`,
       children,
       breadcrumbs: crumbs,
-      canDownloadBundle: true,
+      canDownloadBundle: false,
       canDownloadLeaf: false,
     };
   }

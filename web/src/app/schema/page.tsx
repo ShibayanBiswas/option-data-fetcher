@@ -164,7 +164,7 @@ export default function SchemaPage() {
                 Desk <span className="shine-text">taxonomy</span>
               </h1>
               <p className="mt-2 font-ui text-sm text-[var(--ar-muted)]">
-                How chains are segregated, stored, and browsed — maps and card rows fill the desk width.
+                How chains are segregated, stored, and browsed — scroll each row of cards.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href="/browse" className="btn-gold inline-flex items-center gap-2 no-underline">
@@ -245,7 +245,6 @@ export default function SchemaPage() {
           title="FinInstrmTp rules"
           subtitle="UDiFF instrument type → INDEX / STOCK / OTHER — pick an exchange to open"
           cardSize="md"
-          fill
         >
           {SEG_CARDS.map((c, i) => (
             <HScrollCard
@@ -276,7 +275,6 @@ export default function SchemaPage() {
           title="Ingest path"
           subtitle="Same path as Sync Today and the weekday Vercel cron"
           cardSize="md"
-          fill
         >
           {PIPE_CARDS.map((c, i) => (
             <HScrollCard

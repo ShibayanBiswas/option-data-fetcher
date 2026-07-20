@@ -43,6 +43,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Whole exchange (NSE / BSE only) is too large for one request
+    if (segments.length === 1 && mode !== "leaf" && !isLeaf) {
+      return NextResponse.json(
+        {
+          error:
+            "Pick Index Options, Stock Options, or a symbol folder — a whole exchange zip is too large.",
+        },
+        { status: 400 }
+      );
+    }
+
     if (mode === "leaf" || isLeaf) {
       if (format === "xlsx" || format === "excel") {
         const { buffer, filename } = await buildLeafExcel(browsePath);

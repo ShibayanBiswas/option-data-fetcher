@@ -32,8 +32,8 @@ Short version:
 - Left **file tree** (Index Options + Stock Options open by default; CALL/PUT are leaves — trade dates load in the main panel only)
 - Right panel scrolls **on its own** (independent from the sidebar)
 - Trade-date lists: **oldest → newest**, with a **calendar range** filter
-- One CSV / Excel download control per page (folder zips via fetch + clear errors)
-- Home: full-width **desk navigation map**, coverage KPIs, capabilities + pipeline grids
+- Home: horizontal **capabilities** + **pipeline** card rails (Scroll →), desk navigation map, coverage KPIs
+- Schema: horizontal card rails for hierarchy / segregation / pipeline / columns / sectors
 - Browse root: **NSE | BSE exchange picker** (no full-archive zip — pick a folder first)
 - Schema: full-width **exchange map**, NSE|BSE pair links on sectors & segregation
 - Motion: page transitions, sidebar expand, download success flash (respects reduced-motion)

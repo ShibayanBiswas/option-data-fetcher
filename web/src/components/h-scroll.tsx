@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useRef, type MouseEvent } from "react";
+import { type ReactNode, useRef, type MouseEvent, type WheelEvent } from "react";
 import { motion, useMotionTemplate, useMotionValue, useSpring } from "framer-motion";
 import { AnimatedScrollCue } from "./exchange-pair-links";
 
@@ -12,8 +12,6 @@ export function HScrollSection({
   subtitle,
   cardSize = "md",
   id,
-  /** fill = stretch cards across full width (no empty right gutter) */
-  fill = false,
   children,
 }: {
   eyebrow: string;
@@ -21,9 +19,21 @@ export function HScrollSection({
   subtitle?: string;
   cardSize?: HScrollCardSize;
   id?: string;
-  fill?: boolean;
   children: ReactNode;
 }) {
+  const railRef = useRef<HTMLDivElement>(null);
+
+  const onWheel = (e: WheelEvent<HTMLDivElement>) => {
+    const el = railRef.current;
+    if (!el) return;
+    // Convert vertical wheel into horizontal scroll when the rail overflows
+    if (el.scrollWidth <= el.clientWidth) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  };
+
   return (
     <section id={id} className="h-scroll-section scroll-mt-4">
       <header className="mb-2 flex flex-wrap items-end justify-between gap-2 px-0.5">
@@ -44,15 +54,13 @@ export function HScrollSection({
             </p>
           ) : null}
         </motion.div>
-        {fill ? null : <AnimatedScrollCue />}
+        <AnimatedScrollCue />
       </header>
       <div
-        className={
-          fill
-            ? "h-scroll-rail h-scroll-rail--fill"
-            : "h-scroll-rail h-scroll-rail--uniform scrollbar-thin"
-        }
+        ref={railRef}
+        className="h-scroll-rail h-scroll-rail--uniform scrollbar-thin"
         data-size={cardSize}
+        onWheel={onWheel}
       >
         {children}
       </div>

@@ -335,9 +335,8 @@ function HomeBody() {
         <HScrollSection
           eyebrow="Capabilities"
           title="What the desk does"
-          subtitle="Six desk capabilities — swipe on small screens, full row on wide."
+          subtitle="Swipe sideways — uniform cards in this row."
           cardSize="lg"
-          fill
         >
           {features.map((f, i) => (
             <HScrollCard key={f.kicker} size="lg" href={f.href} delay={i * 0.04}>
@@ -363,7 +362,6 @@ function HomeBody() {
           title="How the desk builds the book"
           subtitle="Daily F&O UDiFF bhavcopy → segregate → SQLite / Turso → browse & download."
           cardSize="lg"
-          fill
         >
           {PIPELINE_STEPS.map((step, i) => (
             <HScrollCard key={step.n} size="lg" delay={0.05 + i * 0.06}>
