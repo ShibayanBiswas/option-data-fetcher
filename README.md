@@ -7,7 +7,8 @@ Historical NSE / BSE option-chain desk — browse, download, sync.
 ```bash
 cd web
 npm install
-npm run seed 10        # or: npm run seed:fresh  (full wipe + history, long)
+npm run seed:backfill   # full UDiFF history (2024-01-01 → latest) for all securities
+# or: npm run seed 10   # quick smoke test
 npm run dev
 ```
 
@@ -31,12 +32,10 @@ Open http://localhost:3000
 1. Import repo on Vercel — **Root Directory = `web`**
 2. Create Turso DB → set `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
 3. Set `CRON_SECRET`, `SYNC_SECRET` (Production)
-4. Deploy → seed Turso once from laptop (`npm run seed:max`)
+4. Deploy → seed Turso once from laptop (`npm run seed:backfill`)
 5. Verify Browse, downloads, Sync Today, cron
 
-Weekday cron: **11:30 UTC** (~17:00 IST) → `/api/cron/daily-sync`
-
-Full guide: **[`web/DEPLOY.md`](web/DEPLOY.md)**
+**Full history:** UDiFF F&O bhavcopy starts **2024-01-01** on NSE and BSE. Use `seed:backfill` (or `seed:fresh`) so INDEX + STOCK + OTHER cover every published session through the latest settle.
 
 ## Hierarchy
 

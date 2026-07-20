@@ -20,7 +20,7 @@ async function main() {
   const wantAll = target === "all" || target === "--all";
 
   console.log("Fetching trading calendar…");
-  const dates = await fetchTradingDates(2);
+  const dates = await fetchTradingDates();
   const cutoff = latestWeekday();
   const ready = dates.filter((d) => d <= cutoff);
 
@@ -32,7 +32,7 @@ async function main() {
     `Seeding ${slice.length} trading day(s) into SQLite` +
       `${force ? " (force rewrite)" : ""}…`
   );
-  console.log(`Range: ${slice[0]} → ${slice[slice.length - 1]}`);
+  console.log(`Range: ${slice[0]} → ${slice[slice.length - 1]} (UDiFF epoch → latest)`);
 
   let synced = 0;
   let skipped = 0;

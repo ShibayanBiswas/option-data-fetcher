@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (body.seed) {
-      const dates = await fetchTradingDates(2);
+      const dates = await fetchTradingDates();
       const limit = Math.min(body.days ?? 5, 60);
       const slice = dates.slice(-limit);
       const results = [];

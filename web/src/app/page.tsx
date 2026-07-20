@@ -314,9 +314,10 @@ function HomeBody() {
           />
         </div>
         <p className="mt-3 font-ui text-xs text-[var(--ar-subtle)]">
-          UDiFF bhavcopy history is available from mid-2024 onward. Use Sync Today
-          for the latest session, or seed more trading days from the desk scripts
-          to deepen the archive.
+          UDiFF F&amp;O bhavcopy is archived from 2024-01-01 (NSE &amp; BSE format
+          start) through the latest settled session. Use Sync Today after ~18:30 IST,
+          or run <code className="text-[var(--ar-ink)]">npm run seed:backfill</code>{" "}
+          to fill any calendar gaps.
         </p>
       </section>
 

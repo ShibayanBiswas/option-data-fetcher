@@ -44,7 +44,7 @@ async function main() {
   console.log("SQLite schema ready (empty).");
 
   console.log("\n—— 2/3 Fetch trading calendar ——");
-  const dates = await fetchTradingDates(2);
+  const dates = await fetchTradingDates();
   const cutoff = latestWeekday();
   const ready = dates.filter((d) => d <= cutoff);
   console.log(`Sessions: ${ready.length} (${ready[0]} → ${ready.at(-1)})`);

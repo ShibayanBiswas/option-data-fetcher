@@ -26,8 +26,13 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
    - `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
    - `CRON_SECRET`, `SYNC_SECRET` (generate with `openssl rand -hex 32`)
 4. **Deploy** → wait for build
-5. **Seed** from laptop with same Turso creds: `npm run seed:max -- --stock-days=30`
+5. **Seed** from laptop with same Turso creds:
+   ```bash
+   npm run seed:backfill   # full UDiFF history for ALL securities (NSE+BSE)
+   ```
 6. **Verify** — Browse, CSV Zip, Sync Today, cron job in Vercel settings
+
+> **Coverage:** NSE/BSE UDiFF F&O bhavcopy begins **2024-01-01**. Pre-2024 files use a different layout and are not ingested. Latest session appears after ~18:30 IST settlement. BSE stock options (`STO`) appear in bhavcopy from **~2024-06-27** onward; earlier BSE sessions are index-only.
 
 ## What you get
 
@@ -69,8 +74,10 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 |---------|---------|
 | `npm run dev` | Local UI |
 | `npm run seed N` | Last N sessions |
-| `npm run seed:max` | Full INDEX + recent STOCK |
-| `npm run seed:fresh` | Wipe + full re-download |
+| `npm run seed:all` | Full calendar from 2024-01-01 (skip existing) |
+| `npm run seed:backfill` | **Fill gaps** — all securities NSE+BSE to latest |
+| `npm run seed:max` | Wipe → full INDEX + recent STOCK only |
+| `npm run seed:fresh` | Wipe + full re-download all segments |
 | `npm run typecheck` | TypeScript check |
 
 ## Manual sync

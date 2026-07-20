@@ -38,6 +38,12 @@ export const SEGMENT_LABELS: Record<Segment, string> = {
   OTHER: "Other Securities",
 };
 
+/**
+ * First calendar day NSE/BSE publish FO bhavcopy in UDiFF format
+ * (BhavCopy_*_FO_0_0_0_{yyyymmdd}_F_0000). Pre-2024 archives use a different layout.
+ */
+export const UDIFF_EPOCH = "2024-01-01";
+
 export const NSE_FO_URL =
   "https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{yyyymmdd}_F_0000.csv.zip";
 

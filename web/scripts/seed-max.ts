@@ -25,7 +25,7 @@ async function main() {
   await dropAllChains();
   console.log("Cleared.");
 
-  const dates = await fetchTradingDates(2);
+  const dates = await fetchTradingDates();
   const cutoff = latestWeekday();
   const ready = dates.filter((d) => d <= cutoff);
   console.log(`Sessions to cover: ${ready.length} (${ready[0]} → ${ready.at(-1)})`);

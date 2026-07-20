@@ -5,6 +5,7 @@ import {
   HTTP_HEADERS,
   NSE_FO_URL,
   PREFERRED_COLUMNS,
+  UDIFF_EPOCH,
   classifySegment,
   sideFromOptnTp,
 } from "./constants";
@@ -85,13 +86,14 @@ async function downloadNseRows(tradeDate: string): Promise<OptionRow[] | "missin
   if (response.status === 404) return "missing";
 
   const buffer = Buffer.from(await response.arrayBuffer());
+  // Holidays / unpublished sessions sometimes return HTML or empty bodies.
   if (buffer[0] !== 0x50 || buffer[1] !== 0x4b) {
-    throw new Error(`NSE response for ${tradeDate} is not a zip archive`);
+    return "missing";
   }
 
   const zip = await JSZip.loadAsync(buffer);
   const csvName = Object.keys(zip.files).find((n) => n.toLowerCase().endsWith(".csv"));
-  if (!csvName) throw new Error(`No CSV in NSE archive for ${tradeDate}`);
+  if (!csvName) return "missing";
   const raw = await zip.files[csvName].async("string");
   return parseCsvText(raw);
 }
@@ -102,8 +104,9 @@ async function downloadBseRows(tradeDate: string): Promise<OptionRow[] | "missin
   const response = await fetchWithRetries(url, BSE_HEADERS);
   if (response.status === 404) return "missing";
   const text = await response.text();
+  // BSE often returns an HTML shell on holidays instead of HTTP 404.
   if (!text.includes("TradDt") && !text.includes("TckrSymb")) {
-    throw new Error(`BSE response for ${tradeDate} is not a bhavcopy CSV`);
+    return "missing";
   }
   return parseCsvText(text);
 }
@@ -277,13 +280,11 @@ export async function syncTradeDate(
 }
 
 /** Weekday ISO dates (Mon–Fri) as a calendar fallback when Yahoo is unreachable. */
-function weekdayFallback(years = 2): string[] {
-  const end = new Date();
-  const start = new Date();
-  start.setFullYear(end.getFullYear() - years);
+function weekdayFallback(fromIso = UDIFF_EPOCH): string[] {
   const out: string[] = [];
-  const d = new Date(Date.UTC(start.getFullYear(), start.getMonth(), start.getDate()));
-  const endUtc = new Date(Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()));
+  const d = new Date(`${fromIso}T12:00:00Z`);
+  const endUtc = new Date();
+  endUtc.setUTCHours(12, 0, 0, 0);
   while (d <= endUtc) {
     const day = d.getUTCDay();
     if (day !== 0 && day !== 6) {
@@ -294,13 +295,16 @@ function weekdayFallback(years = 2): string[] {
   return out;
 }
 
-export async function fetchTradingDates(years = 2): Promise<string[]> {
-  const end = new Date();
-  const start = new Date();
-  start.setFullYear(end.getFullYear() - years);
-
+/**
+ * Trading sessions from UDiFF epoch (2024-01-01) through today.
+ * Prefer Yahoo ^NSEI; fall back to weekdays.
+ * Optional `years` is ignored for start bound — history always begins at UDIFF_EPOCH
+ * (kept for call-site compatibility).
+ */
+export async function fetchTradingDates(_years?: number): Promise<string[]> {
+  const start = new Date(`${UDIFF_EPOCH}T12:00:00Z`);
   const period1 = Math.floor(start.getTime() / 1000);
-  const period2 = Math.floor(end.getTime() / 1000) + 86_400;
+  const period2 = Math.floor(Date.now() / 1000) + 86_400;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1d&period1=${period1}&period2=${period2}`;
 
   try {
@@ -317,6 +321,7 @@ export async function fetchTradingDates(years = 2): Promise<string[]> {
     const timestamps: number[] = payload?.chart?.result?.[0]?.timestamp ?? [];
     const dates = timestamps
       .map((ts) => new Date(ts * 1000).toISOString().slice(0, 10))
+      .filter((iso) => iso >= UDIFF_EPOCH)
       .sort();
     if (dates.length > 0) return dates;
   } catch (err) {
@@ -325,7 +330,7 @@ export async function fetchTradingDates(years = 2): Promise<string[]> {
       err instanceof Error ? err.message : err
     );
   }
-  return weekdayFallback(years);
+  return weekdayFallback(UDIFF_EPOCH);
 }
 
 export function latestWeekday(from = new Date()): string {

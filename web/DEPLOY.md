@@ -142,17 +142,21 @@ LIBSQL_AUTH_TOKEN=your-token
 Pick a seed strategy:
 
 ```bash
-# Recommended first deploy: full INDEX + recent STOCK
-npm run seed:max -- --stock-days=30
+# Fill every gap from UDiFF start (2024-01-01) → latest settled session
+# INDEX + STOCK + OTHER for NSE and BSE (recommended for complete archive)
+npm run seed:backfill
+
+# Nuclear: wipe + re-download full history (hours, very large)
+npm run seed:fresh
 
 # Quick test: last 5 sessions
 npm run seed 5
 
-# Full history (hours, very large)
-npm run seed:fresh
+# INDEX full + recent STOCK only (not complete for all securities)
+npm run seed:max -- --stock-days=30
 ```
 
-When finished, refresh the live Vercel site — Home KPIs and Browse should show data.
+When finished, refresh the live Vercel site — Home KPIs should show span **2024-01-01 → latest** with both exchanges populated.
 
 ---
 
@@ -285,7 +289,9 @@ Open http://localhost:3000
 | Script | Meaning |
 |--------|---------|
 | `npm run seed N` | Last N trading days |
-| `npm run seed:max` | Full INDEX + recent STOCK |
+| `npm run seed:all` | Full calendar from 2024-01-01 (skip existing) |
+| `npm run seed:backfill` | **Fill gaps** — all securities NSE+BSE to latest |
+| `npm run seed:max` | Wipe → full INDEX + recent STOCK only |
 | `npm run seed:fresh` | Wipe + full re-download |
 | `npm run typecheck` | TypeScript check |
 

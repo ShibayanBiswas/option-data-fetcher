@@ -12,6 +12,7 @@
     "seed:max": "tsx --env-file=.env.local scripts/seed-max.ts",
     "ingest:local": "tsx --env-file=.env.local scripts/ingest-local.ts",
     "seed:fresh": "tsx --env-file=.env.local scripts/fresh-seed-all.ts",
+    "seed:backfill": "tsx --env-file=.env.local scripts/seed-backfill.ts",
     "reclassify": "tsx --env-file=.env.local scripts/reclassify-segments.ts",
     "audit:segments": "tsx --env-file=.env.local scripts/audit-segments.ts",
     "typecheck": "tsc --noEmit"
