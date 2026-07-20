@@ -13,7 +13,7 @@ npm run dev
 
 Open http://localhost:3000
 
-- **Browse** — left file tree + right panel (separate scrolling)
+- **Browse** — left file tree + right panel; root shows NSE | BSE exchange picker
 - **Schema** — full-width maps + card rails (fill or horizontal scroll)
 - **Home** — coverage KPIs, desk navigation map, capabilities, pipeline
 - **⌘K / Ctrl+K** — jump search

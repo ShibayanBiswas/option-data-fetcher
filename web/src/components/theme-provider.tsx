@@ -23,9 +23,14 @@ function applyTheme(theme: Theme) {
   document.documentElement.style.colorScheme = theme;
 }
 
+function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+  if (document.documentElement.classList.contains("dark")) return "dark";
+  return window.localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Light is the product default; only switch when user explicitly chose dark.
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(() => readStoredTheme());
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);

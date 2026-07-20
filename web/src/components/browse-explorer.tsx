@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { BrowseChild, BrowseResponse } from "@/lib/types";
 import { DateRangeFilter } from "./date-range-filter";
 import { DownloadButtons } from "./download-buttons";
+import { ArchiveRootHero, ExchangePickerGrid } from "./exchange-picker";
 import { StaggerItem } from "./motion-primitives";
 import { SexyCard } from "./sexy-card";
 
@@ -157,6 +158,7 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
     : "/browse";
   const showHeaderDownload =
     (data.canDownloadBundle || data.canDownloadLeaf) && !data.table;
+  const isRoot = data.level === "root";
 
   return (
     <div className="browse-pane space-y-4">
@@ -184,6 +186,15 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
         })}
       </nav>
 
+      {isRoot ? (
+        <>
+          <ArchiveRootHero title={data.title} subtitle={data.subtitle} />
+          {visibleChildren.length > 0 ? (
+            <ExchangePickerGrid items={visibleChildren} />
+          ) : null}
+        </>
+      ) : (
+        <>
       <SexyCard className="!p-4">
         <motion.div
           className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"
@@ -348,8 +359,10 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
           No trade dates in this range. Widen the calendar filter or tap All dates.
         </div>
       ) : null}
+        </>
+      )}
 
-      {data.table && (
+      {!isRoot && data.table && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -389,7 +402,8 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
       {visibleChildren.length === 0 &&
         !data.table &&
         !data.sectorGroups &&
-        data.level !== "side" && (
+        data.level !== "side" &&
+        data.level !== "root" && (
           <div className="glass rounded-2xl p-8 text-center font-ui text-sm text-[var(--ar-muted)]">
             <Folder className="mx-auto mb-3 h-8 w-8 text-[var(--ar-gold)]" />
             No files at this level yet. Sync bhavcopy data to populate the archive.

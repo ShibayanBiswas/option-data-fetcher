@@ -13,17 +13,51 @@ function downloadUrl(path: string, format: "csv" | "xlsx", leaf: boolean) {
   return `/api/download?${params.toString()}`;
 }
 
-async function saveBlob(res: Response, fallbackExt: string) {
+function filenameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) return fallback;
+  const star = /filename\*=UTF-8''([^;\s]+)/i.exec(header);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1]);
+    } catch {
+      /* fall through */
+    }
+  }
+  const plain = /filename="([^"]+)"/i.exec(header);
+  if (plain?.[1]) return plain[1];
+  const unquoted = /filename=([^;\s]+)/i.exec(header);
+  if (unquoted?.[1]) return unquoted[1].replace(/"/g, "");
+  return fallback;
+}
+
+async function saveResponse(res: Response, fallbackName: string) {
   const blob = await res.blob();
-  const cd = res.headers.get("Content-Disposition") ?? "";
-  const match = /filename="([^"]+)"/.exec(cd);
-  const filename = match?.[1] ?? `download.${fallbackExt}`;
+  const filename = filenameFromDisposition(
+    res.headers.get("Content-Disposition"),
+    fallbackName
+  );
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function fetchDownload(url: string, fallbackName: string) {
+  const res = await fetch(url, { credentials: "same-origin", cache: "no-store" });
+  const ct = res.headers.get("Content-Type") ?? "";
+  if (!res.ok) {
+    if (ct.includes("application/json")) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(json.error ?? "Download failed");
+    }
+    throw new Error(`Download failed (${res.status})`);
+  }
+  await saveResponse(res, fallbackName);
 }
 
 export function DownloadButtons({
@@ -43,31 +77,22 @@ export function DownloadButtons({
       setDone(null);
       setError(null);
       const url = downloadUrl(path, format, leaf);
+      const fallback =
+        format === "csv"
+          ? leaf
+            ? "chain.csv"
+            : "chain.zip"
+          : leaf
+            ? "chain.xlsx"
+            : "chain_excel.zip";
 
       try {
-        if (leaf) {
-          const res = await fetch(url);
-          if (!res.ok) {
-            const json = await res.json().catch(() => ({}));
-            throw new Error(
-              typeof json.error === "string" ? json.error : "Download failed"
-            );
-          }
-          await saveBlob(res, format === "csv" ? "csv" : "xlsx");
-        } else {
-          // Native browser download — streams from server without loading full zip in JS
-          const a = document.createElement("a");
-          a.href = url;
-          a.rel = "noopener";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        }
+        await fetchDownload(url, fallback);
         setDone(format);
         window.setTimeout(() => setDone(null), 2200);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Download failed");
-        window.setTimeout(() => setError(null), 4000);
+        window.setTimeout(() => setError(null), 5000);
       } finally {
         setBusy(null);
       }
@@ -77,7 +102,7 @@ export function DownloadButtons({
 
   const iconFor = (format: "csv" | "xlsx", isLeaf: boolean) => {
     if (busy === format) return <Loader2 className="h-3.5 w-3.5 animate-spin" />;
-    if (done === format) return <Check className="h-3.5 w-3.5 text-emerald-600" />;
+    if (done === format) return <Check className="h-3.5 w-3.5 download-check-icon" />;
     if (format === "csv") {
       return isLeaf ? (
         <FileText className="h-3.5 w-3.5" />
@@ -98,9 +123,8 @@ export function DownloadButtons({
           }`}
           onClick={() => trigger("csv")}
           disabled={busy !== null}
-          whileHover={busy ? undefined : { scale: 1.03, y: -1 }}
+          whileHover={busy ? undefined : { scale: 1.02 }}
           whileTap={busy ? undefined : { scale: 0.98 }}
-          transition={{ type: "spring", stiffness: 420, damping: 22 }}
         >
           {iconFor("csv", leaf)}
           {leaf ? "CSV" : "CSV Zip"}
@@ -112,9 +136,8 @@ export function DownloadButtons({
           }`}
           onClick={() => trigger("xlsx")}
           disabled={busy !== null}
-          whileHover={busy ? undefined : { scale: 1.03, y: -1 }}
+          whileHover={busy ? undefined : { scale: 1.02 }}
           whileTap={busy ? undefined : { scale: 0.98 }}
-          transition={{ type: "spring", stiffness: 420, damping: 22 }}
         >
           {iconFor("xlsx", leaf)}
           {leaf ? "Excel" : "Excel Zip"}
@@ -129,7 +152,7 @@ export function DownloadButtons({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            {leaf ? "Preparing file…" : "Starting download — large zips stream in your browser"}
+            {leaf ? "Preparing file…" : "Building zip — please wait…"}
           </motion.p>
         )}
         {error && (

@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Moon, Sun, Database, RefreshCw, Search } from "lucide-react";
 import { motion } from "framer-motion";
+import { BrandLogo } from "./brand-logo";
 import { useTheme } from "./theme-provider";
 
 export function SiteHeader({
@@ -22,14 +22,7 @@ export function SiteHeader({
       <div className="desk-gold-rail" />
       <div className="brand-header-inner brand-header-glow">
         <Link href="/" className="brand-lockup no-underline">
-          <Image
-            src={theme === "dark" ? "/brand/arwl-logo-white.png" : "/brand/arwl-logo.png"}
-            alt="Anand Rathi Wealth"
-            width={156}
-            height={42}
-            className="brand-logo-img"
-            priority
-          />
+          <BrandLogo />
           <span className="brand-lockup-divider" aria-hidden />
           <span className="brand-title-block">
             <span className="brand-title-eyebrow">Derivatives desk</span>

@@ -216,7 +216,8 @@ Open http://localhost:3000
 | Huge DB / Turso quota | Prefer `seed:max` (INDEX full + limited STOCK days) |
 | Buttons looked duplicated | Fixed — expiry pages show one CSV/Excel pair in the header only |
 | Sidebar and page scrolled together | Fixed — each pane scrolls on its own inside the desk layout |
-| Downloads slow or time out | Download a **leaf** expiry file first (single CSV/Excel). For big folder zips, pick a narrower folder (symbol + side) instead of whole exchange |
+| Downloads slow or time out | Download a **leaf** expiry file first. For folders, pick a narrower path — **root archive zip is disabled** (too large) |
+| Logo invisible in dark mode | Fixed — header logo follows `html.dark` via CSS, not React hydration |
 | Excel zip very slow | CSV zip is faster — Excel builds workbooks in parallel but still take longer on large folders |
 
 ---

@@ -130,7 +130,7 @@ export async function browse(
       subtitle: "Choose an exchange to explore historical NSE & BSE option chains.",
       children,
       breadcrumbs: crumbs,
-      canDownloadBundle: true,
+      canDownloadBundle: false,
       canDownloadLeaf: false,
     };
   }
