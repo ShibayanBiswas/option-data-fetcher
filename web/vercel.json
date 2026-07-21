@@ -11,7 +11,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "private, max-age=60, stale-while-revalidate=120"
+          "value": "private, max-age=300, stale-while-revalidate=600"
         }
       ]
     },
