@@ -15,7 +15,7 @@
   --ar-bg: #f7f7f7;
   --ar-surface: #ffffff;
   --ar-panel: #fafafa;
-  --ar-border: rgba(17, 17, 17, 0.08);
+  --ar-border: rgba(17, 17, 17, 0.07);
   --ar-shadow: 0 8px 32px -8px rgba(17, 17, 17, 0.08), 0 2px 8px -2px rgba(17, 17, 17, 0.04);
   --ar-header-bg: rgba(255, 255, 255, 0.92);
   --ar-table-head-from: #faf8f3;
@@ -38,7 +38,7 @@ html.dark {
   --ar-bg: #050403;
   --ar-surface: #110c0e;
   --ar-panel: #1a1214;
-  --ar-border: rgba(212, 178, 76, 0.14);
+  --ar-border: rgba(245, 245, 244, 0.1);
   --ar-shadow: 0 16px 48px -16px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(212, 178, 76, 0.12);
   --ar-header-bg: rgba(5, 4, 3, 0.94);
   --ar-table-head-from: #1a1612;
@@ -137,7 +137,7 @@ body {
 
 .glass {
   background: color-mix(in srgb, var(--ar-surface) 94%, transparent);
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   box-shadow: var(--ar-shadow);
 }
 
@@ -153,7 +153,7 @@ body {
 }
 
 .folder-card:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 45%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 14%, transparent);
 }
 
 .btn-gold,
@@ -689,52 +689,12 @@ html.dark .brand-logo--dark {
   max-width: 13.25rem;
   scroll-snap-align: start;
   box-sizing: border-box;
-  /* Allow gold rail + water sheen to paint (contain was clipping them) */
   contain: none;
   overflow: hidden;
 }
 
-.kpi-band-card .sexy-card-rail {
-  left: 0.85rem;
-  right: 0.85rem;
-  height: 2.5px;
-  opacity: 1;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--ar-gold) 55%, transparent) 18%,
-    var(--ar-gold) 50%,
-    color-mix(in srgb, var(--ar-gold) 55%, transparent) 82%,
-    transparent 100%
-  );
-  box-shadow: 0 0 10px color-mix(in srgb, var(--ar-gold) 45%, transparent);
-}
-
-/* Matching gold accent at the bottom — same language as other desk cards */
-.kpi-band-card::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  left: 0.85rem;
-  right: 0.85rem;
-  bottom: 0;
-  height: 2.5px;
-  z-index: 2;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--ar-gold) 55%, transparent) 18%,
-    var(--ar-gold) 50%,
-    color-mix(in srgb, var(--ar-gold) 55%, transparent) 82%,
-    transparent 100%
-  );
-  box-shadow: 0 0 10px color-mix(in srgb, var(--ar-gold) 40%, transparent);
-  opacity: 1;
-}
-
 .kpi-band-card:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 55%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
 }
 
 .kpi-band-card:hover::after {
@@ -748,7 +708,7 @@ html.dark .brand-logo--dark {
   border-radius: 1rem;
   padding: 0.95rem 1rem;
   background: color-mix(in srgb, var(--ar-surface) 96%, transparent);
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   box-shadow: var(--ar-shadow);
   contain: layout paint;
 }
@@ -1125,14 +1085,14 @@ html.dark .archive-tree-icon {
   border-radius: 1.25rem;
   padding: 1.25rem 1.35rem;
   background: color-mix(in srgb, var(--ar-surface) 96%, transparent);
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   box-shadow: var(--ar-shadow);
   contain: layout paint;
   transition: border-color 0.2s ease;
 }
 
 .sexy-card:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 45%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
 }
 
 .pipeline-step-index {
@@ -1158,15 +1118,17 @@ html.dark .archive-tree-icon {
   top: 0;
   bottom: auto;
   width: auto;
-  height: 2px;
+  height: 1px;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    transparent,
-    color-mix(in srgb, var(--ar-gold) 75%, var(--ar-maroon)),
-    transparent
+    transparent 0%,
+    color-mix(in srgb, var(--ar-ink) 10%, transparent) 22%,
+    color-mix(in srgb, var(--ar-ink) 14%, transparent) 50%,
+    color-mix(in srgb, var(--ar-ink) 10%, transparent) 78%,
+    transparent 100%
   );
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 /* —— Desk flow maps —— */
@@ -1178,7 +1140,7 @@ html.dark .archive-tree-icon {
     radial-gradient(ellipse 60% 50% at 10% 0%, rgba(212, 178, 76, 0.12), transparent 60%),
     radial-gradient(ellipse 50% 40% at 90% 100%, rgba(122, 30, 44, 0.1), transparent 55%),
     color-mix(in srgb, var(--ar-surface) 88%, transparent);
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   box-shadow: var(--ar-shadow);
   overflow: hidden;
 }
@@ -1207,18 +1169,18 @@ html.dark .archive-tree-icon {
   max-width: 100%;
   padding: 0.45rem 0.7rem 0.45rem 0.4rem;
   border-radius: 0.75rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   font-family: var(--font-sans);
   text-align: left;
   background: color-mix(in srgb, var(--ar-panel) 94%, transparent);
   color: var(--ar-ink);
-  box-shadow: 0 8px 24px -16px rgba(122, 30, 44, 0.35);
+  box-shadow: var(--ar-shadow);
   contain: layout paint;
   transition: border-color 0.2s ease;
 }
 
 .flow-node-shell:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 55%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
 }
 
 .flow-node-shell--stretch {
@@ -1259,7 +1221,7 @@ html.dark .archive-tree-icon {
   min-width: 0;
   padding: 0.65rem;
   border-radius: 0.9rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   background: color-mix(in srgb, var(--ar-panel) 80%, transparent);
 }
 
@@ -1295,11 +1257,11 @@ html.dark .archive-tree-icon {
 html.dark .flow-node--root {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--ar-maroon) 35%, var(--ar-panel)),
-    color-mix(in srgb, var(--ar-gold) 28%, var(--ar-panel))
+    color-mix(in srgb, var(--ar-maroon) 22%, var(--ar-panel)),
+    color-mix(in srgb, var(--ar-gold) 14%, var(--ar-panel))
   );
   color: var(--ar-ink);
-  border-color: color-mix(in srgb, var(--ar-gold) 40%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 14%, transparent);
 }
 
 html.dark .flow-node--root .flow-node-meta {
@@ -1309,10 +1271,10 @@ html.dark .flow-node--root .flow-node-meta {
 .flow-node--accent {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--ar-gold) 28%, var(--ar-panel)),
+    color-mix(in srgb, var(--ar-ink) 4%, var(--ar-panel)),
     var(--ar-panel)
   );
-  border-color: color-mix(in srgb, var(--ar-gold) 45%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 10%, transparent);
 }
 
 .flow-node--leaf {
@@ -1421,7 +1383,7 @@ html.dark .flow-node--root .flow-node-meta {
   min-width: 0;
   padding: 0.85rem 0.95rem;
   border-radius: 1rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   background: color-mix(in srgb, var(--ar-surface) 96%, transparent);
   box-shadow: var(--ar-shadow);
   contain: layout paint;
@@ -1429,7 +1391,7 @@ html.dark .flow-node--root .flow-node-meta {
 }
 
 .flow-pipe-card:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 45%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
 }
 
 .flow-pipe-index {
@@ -1474,7 +1436,7 @@ html.dark .flow-node--root .flow-node-meta {
   gap: 0.65rem;
   padding: 0.65rem 0.75rem;
   border-radius: 0.9rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   background: color-mix(in srgb, var(--ar-surface) 92%, transparent);
 }
 
@@ -1687,7 +1649,7 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
   min-height: 5.5rem;
   padding: 0.85rem 0.95rem;
   border-radius: 0.9rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   background: color-mix(in srgb, var(--ar-panel) 92%, transparent);
   color: var(--ar-ink);
   contain: layout paint;
@@ -1695,8 +1657,8 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
 }
 
 .hero-quick-card:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 50%, var(--ar-border));
-  background: color-mix(in srgb, var(--ar-gold) 10%, var(--ar-panel));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
+  background: color-mix(in srgb, var(--ar-panel) 98%, transparent);
 }
 
 .hero-quick-icon {
@@ -1721,7 +1683,7 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
 
 /* —— Browse archive root: exchange picker —— */
 .archive-root-hero {
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
 }
 
 .exchange-picker-grid {
@@ -1745,7 +1707,7 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
   overflow: hidden;
   padding: 1.15rem 1.25rem;
   border-radius: 1rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   background: color-mix(in srgb, var(--ar-surface) 96%, transparent);
   color: var(--ar-ink);
   contain: layout paint;
@@ -1753,7 +1715,7 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
 }
 
 .exchange-picker-tile:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 55%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
 }
 
 .exchange-picker-icon {
@@ -1853,7 +1815,7 @@ html.dark .exchange-picker-badge.is-live {
   overflow: hidden;
   border-radius: 0.95rem;
   padding: 0.85rem 1.05rem 0.8rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
   background: color-mix(in srgb, var(--ar-surface) 96%, transparent);
   box-shadow: var(--ar-shadow);
   contain: layout paint;
@@ -1861,7 +1823,7 @@ html.dark .exchange-picker-badge.is-live {
 }
 
 .h-scroll-card:hover {
-  border-color: color-mix(in srgb, var(--ar-gold) 45%, var(--ar-border));
+  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
 }
 
 .h-scroll-card-body {
@@ -1880,7 +1842,7 @@ html.dark .exchange-picker-badge.is-live {
   flex-shrink: 0;
   margin-top: 0.45rem;
   padding-top: 0.4rem;
-  border-top: 1px solid color-mix(in srgb, var(--ar-border) 85%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ar-ink) 6%, transparent);
 }
 
 
@@ -2018,7 +1980,7 @@ html.dark .exchange-picker-badge.is-live {
   background: var(--ar-surface);
 }
 
-/* Soft top hairline instead of heavy left “patch” */
+/* Soft top hairline — light, neutral (no brown/gold bars) */
 .h-scroll-card-rail {
   position: absolute;
   left: 0.85rem;
@@ -2026,15 +1988,17 @@ html.dark .exchange-picker-badge.is-live {
   top: 0;
   bottom: auto;
   width: auto;
-  height: 2px;
+  height: 1px;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    transparent,
-    color-mix(in srgb, var(--ar-gold) 75%, var(--ar-maroon)),
-    transparent
+    transparent 0%,
+    color-mix(in srgb, var(--ar-ink) 10%, transparent) 22%,
+    color-mix(in srgb, var(--ar-ink) 14%, transparent) 50%,
+    color-mix(in srgb, var(--ar-ink) 10%, transparent) 78%,
+    transparent 100%
   );
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 /* —— Stylish desk card typography —— */
@@ -2298,9 +2262,24 @@ html.dark .exchange-picker-tile,
 html.dark .flow-pipe-card,
 html.dark .date-range-bar,
 html.dark .glass,
-html.dark .dropdown-panel {
+html.dark .dropdown-panel,
+html.dark .flow-node-shell,
+html.dark .flow-map-col {
   background: color-mix(in srgb, var(--ar-surface) 94%, transparent);
+  border-color: color-mix(in srgb, var(--ar-ink) 12%, transparent);
   box-shadow: var(--ar-shadow);
+}
+
+html.dark .sexy-card-rail,
+html.dark .h-scroll-card-rail {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ar-ink) 14%, transparent) 22%,
+    color-mix(in srgb, var(--ar-ink) 20%, transparent) 50%,
+    color-mix(in srgb, var(--ar-ink) 14%, transparent) 78%,
+    transparent 100%
+  );
 }
 
 html.dark .btn-pill-active {
