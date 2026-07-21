@@ -9,10 +9,12 @@ export function SiteHeader({
   onSync,
   syncing,
   onSearch,
+  latestTradeDate,
 }: {
   onSync?: () => void;
   syncing?: boolean;
   onSearch?: () => void;
+  latestTradeDate?: string | null;
 }) {
   const { theme, toggle } = useTheme();
 
@@ -48,7 +50,7 @@ export function SiteHeader({
           {onSync && (
             <button
               type="button"
-              className="btn-maroon inline-flex items-center gap-1.5 !px-3.5 !py-2 text-xs shadow-sm"
+              className="btn-maroon inline-flex items-center gap-1.5 !px-3.5 !py-2 text-xs"
               onClick={onSync}
               disabled={syncing}
             >
@@ -68,7 +70,15 @@ export function SiteHeader({
       </div>
       <div className="brand-subheader">
         <Database className="h-3.5 w-3.5 text-[var(--ar-gold)]" />
-        <span>NSE · BSE bhavcopy · SQLite / Turso · weekday auto-refresh</span>
+        <span>
+          NSE · BSE · Turso weekday sync
+          {latestTradeDate ? (
+            <>
+              {" "}
+              · through <strong className="font-semibold text-[var(--ar-ink)]">{latestTradeDate}</strong>
+            </>
+          ) : null}
+        </span>
       </div>
     </header>
   );
@@ -78,7 +88,7 @@ export function SiteFooter() {
   return (
     <footer className="desk-footer shrink-0 border-t border-[var(--ar-border)] py-1">
       <div className="mx-auto flex max-w-full items-center justify-center px-3 font-ui text-[11px] text-[var(--ar-subtle)] lg:px-4">
-        <span>Option Chain Archive · weekday auto-sync</span>
+        <span>Option Chain Archive · live End Date from Turso / SQLite</span>
       </div>
     </footer>
   );

@@ -44,7 +44,8 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
 - Schema cards for UDiFF columns + stock sectors with **NSE | BSE** buttons
 - Horizontal **Scroll →** rails on Home + Schema
 - **CSV only** — leaf CSV or streaming **CSV Zip** (Excel removed)
-- ⌘K search · Sync Today · weekday cron → **Turso**
+- ⌘K search · Sync Today · quiet daily catch-up on visit · weekday cron → **Turso**
+- Coverage KPIs, header “through …” date, and trade-date calendars update dynamically after sync
 
 ## Hierarchy
 
@@ -67,7 +68,8 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 | Sidebar | Prefetches exchange/segment nodes; no trade-date flood |
 | CSV Zip | Server streams via archiver; browser native download |
 | Leaf download | Single CSV + cache headers |
-| Daily sync | Cron + Sync Today write to Turso via `LIBSQL_*` |
+| Daily sync | Cron (~19:30 IST) + Sync Today + quiet catch-up on visit → Turso |
+| Live dates | Status polled / broadcast; calendars extend when End Date advances |
 
 ## Scripts
 

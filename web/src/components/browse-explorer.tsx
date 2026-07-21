@@ -9,13 +9,14 @@ import {
   Building2,
   LineChart,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { BrowseChild, BrowseResponse } from "@/lib/types";
 import { DateRangeFilter } from "./date-range-filter";
 import { DownloadButtons } from "./download-buttons";
 import { ArchiveRootHero, ExchangePickerGrid } from "./exchange-picker";
 import { StaggerItem } from "./motion-primitives";
 import { SexyCard } from "./sexy-card";
+import { ARCHIVE_UPDATED_EVENT, type ArchiveStatusPayload } from "@/lib/archive-events";
 
 function iconForLevel(level: BrowseResponse["level"]) {
   switch (level) {
@@ -70,18 +71,32 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState<string | null>(null);
   const [dateTo, setDateTo] = useState<string | null>(null);
+  const prevMaxRef = useRef<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const apiPath = useMemo(() => initialPath.replace(/^\/+|\/+$/g, ""), [initialPath]);
 
   useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<ArchiveStatusPayload>).detail;
+      if (detail?.synced) setRefreshTick((n) => n + 1);
+    };
+    window.addEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const soft = refreshTick > 0;
+    if (!soft) {
+      setLoading(true);
+      setDateFrom(null);
+      setDateTo(null);
+    }
     setError(null);
-    setDateFrom(null);
-    setDateTo(null);
     const qs = new URLSearchParams({ path: apiPath });
     if (sectorParam) qs.set("sector", sectorParam);
-    fetch(`/api/browse?${qs.toString()}`)
+    fetch(`/api/browse?${qs.toString()}`, { cache: "no-store", credentials: "same-origin" })
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Failed to browse");
@@ -96,11 +111,10 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [apiPath, sectorParam]);
+  }, [apiPath, sectorParam, refreshTick]);
 
   const tradeDates = useMemo(() => {
     if (!data || data.level !== "side") return [] as BrowseChild[];
-    // API returns oldest → newest
     return data.children;
   }, [data]);
 
@@ -113,7 +127,13 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
   useEffect(() => {
     if (!dateBounds) return;
     setDateFrom((prev) => prev ?? dateBounds.min);
-    setDateTo((prev) => prev ?? dateBounds.max);
+    setDateTo((prev) => {
+      if (prev == null) return dateBounds.max;
+      // Keep calendar pinned to latest when user was already on the prior max.
+      if (prevMaxRef.current && prev === prevMaxRef.current) return dateBounds.max;
+      return prev > dateBounds.max ? dateBounds.max : prev;
+    });
+    prevMaxRef.current = dateBounds.max;
   }, [dateBounds]);
 
   const visibleChildren = useMemo(() => {

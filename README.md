@@ -20,6 +20,7 @@ Open http://localhost:3000
 - **⌘K / Ctrl+K** — jump search
 - **Downloads** — CSV only (single leaf CSV or streaming CSV Zip)
 - **Sync Today** — latest bhavcopy session → Turso (prod) or local SQLite (dev)
+- **Auto catch-up** — opening the app quietly syncs once per IST day; KPIs / End Date / calendars refresh live
 
 ## Docs
 

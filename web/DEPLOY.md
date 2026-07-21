@@ -128,8 +128,10 @@ curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
 
 | Mechanism | When |
 |-----------|------|
-| Vercel Cron | Weekdays ~19:30 IST |
-| Sync Today | Manual anytime |
+| Vercel Cron | Weekdays ~19:30 IST → Turso |
+| Sync Today | Manual anytime → Turso |
+| Quiet catch-up | First visit each IST day auto-syncs latest session |
+| Live UI | End Date / KPIs / calendars refresh without waiting for redeploy |
 | `git push main` | Auto-redeploy (no re-seed) |
 
 ---

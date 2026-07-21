@@ -17,6 +17,11 @@ import { AppShell } from "@/components/app-shell";
 import { DeskFlow, type FlowNode } from "@/components/desk-flow";
 import { HScrollCard, HScrollSection } from "@/components/h-scroll";
 import { SexyKpi } from "@/components/sexy-card";
+import {
+  ARCHIVE_UPDATED_EVENT,
+  fetchArchiveStatus,
+  type ArchiveStatusPayload,
+} from "@/lib/archive-events";
 
 type Status = {
   ok: boolean;
@@ -188,10 +193,29 @@ function HomeBody() {
   const [status, setStatus] = useState<Status | null>(null);
 
   useEffect(() => {
-    fetch("/api/sync")
-      .then((r) => r.json())
-      .then(setStatus)
-      .catch(() => setStatus(null));
+    let cancelled = false;
+
+    const apply = (payload: ArchiveStatusPayload | null) => {
+      if (cancelled || !payload) return;
+      setStatus(payload as Status);
+    };
+
+    void fetchArchiveStatus().then(apply);
+
+    const onUpdated = (e: Event) => {
+      apply((e as CustomEvent<ArchiveStatusPayload>).detail);
+    };
+    window.addEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
+
+    const poll = window.setInterval(() => {
+      void fetchArchiveStatus().then(apply);
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
+      window.clearInterval(poll);
+    };
   }, []);
 
   return (
