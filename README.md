@@ -1,47 +1,39 @@
 # Option Chain Archive
 
-Historical NSE / BSE option-chain desk — browse, download CSV, sync to Turso.
+Historical NSE / BSE option-chain desk — browse, download CSV, daily sync.
 
-**Status:** production-ready. Vercel (`web/` root) + Turso + weekday cron. CSV-only downloads, live End Date / calendars, light & dark desk UI.
+**Recommended production:** **VPS + on-disk SQLite** (~8.3 GB file). Vercel cannot host that database; Turso free-tier is a poor fit for this size.
 
-## Quick start
+## Quick start (laptop)
 
 ```bash
 cd web
 npm install
-npm run seed:backfill   # full UDiFF history (2024-01-01 → latest) for all securities
-# or: npm run seed 10   # quick smoke test
+npm run seed:backfill   # full UDiFF history (2024-01-01 → latest)
 npm run dev
 ```
 
 Open http://localhost:3000
 
-- **Browse** — file tree + panel; NSE | BSE picker; compact folder tiles
-- **Schema** — horizontal card rails; exchange map
-- **Home** — live KPI coverage rail (horizontal scroll), navigation map, pipeline rows
-- **⌘K / Ctrl+K** — jump search
-- **Theme** — light / dark (persisted; no flash on reload)
-- **Downloads** — CSV only (leaf CSV or streaming CSV Zip)
-- **Sync** — Sync Today · quiet IST-day catch-up · weekday cron → Turso
-
 ## Docs
 
-| Doc | Audience |
+| Doc | Use when |
 |-----|----------|
-| [`web/DEPLOY.md`](web/DEPLOY.md) | **Full Vercel deploy** — Turso, env vars, seed, cron, checklist |
-| [`web/README.md`](web/README.md) | Features, hierarchy, scripts, live sync behaviour |
+| [`web/DEPLOY-VPS.md`](web/DEPLOY-VPS.md) | **Production redeploy (recommended)** — Ubuntu 24.04, Node 22, SQLite file, cron |
+| [`web/DEPLOY.md`](web/DEPLOY.md) | Legacy Vercel + Turso only (needs paid Turso; not for 8 GB free-tier) |
+| [`web/README.md`](web/README.md) | Features, hierarchy, scripts |
 
-## Deploy on Vercel (summary)
+## Production (summary)
 
-1. Import repo — **Root Directory = `web`**
-2. Turso DB → `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
-3. `CRON_SECRET`, `SYNC_SECRET` (Production + Preview)
-4. Deploy → seed once (`npm run seed:turso:fast` or `seed:backfill`)
-5. Verify Browse, CSV Zip, Sync Today, dark mode, cron
+1. Create Ubuntu **24.04** VPS (4 GB RAM, **40 GB+** disk)
+2. Install **Node 22.14**
+3. `rsync` your local `web/data/option_chain.db` once
+4. Set `LIBSQL_URL=file:…` (no Turso)
+5. `npm run build` + systemd (or Docker Compose)
+6. Weekday cron: `seed-backfill` at **14:00 UTC**
+7. Point DNS at the VPS; pause Vercel / Turso
 
-Weekday cron: **14:00 UTC (~19:30 IST)** → `/api/cron/daily-sync` (writes Turso).
-
-**History:** UDiFF F&O from **2024-01-01**. Use `seed:backfill` / `seed:turso:fast` for full INDEX + STOCK + OTHER coverage.
+Pinned versions and full steps: **[`web/DEPLOY-VPS.md`](web/DEPLOY-VPS.md)**.
 
 ## Hierarchy
 

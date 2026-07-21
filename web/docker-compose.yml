@@ -1,0 +1,32 @@
+# Option Chain Archive — VPS (Docker Compose)
+# Keep the ~8GB SQLite file on a named volume / bind mount — never bake it into the image.
+services:
+  oca:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: option-chain-archive:local
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production
+    environment:
+      LIBSQL_URL: file:/app/data/option_chain.db
+      NODE_ENV: production
+      PORT: "3000"
+    volumes:
+      # Host path must contain option_chain.db (~8–10 GB free)
+      - ./data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/sync').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

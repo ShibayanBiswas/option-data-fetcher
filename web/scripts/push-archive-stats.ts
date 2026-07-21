@@ -1,10 +1,8 @@
 /**
- * Push archive KPI stats to Turso without scanning remote option_chains.
+ * Refresh the one-row `archive_stats` KPI cache.
  *
- * Computes from local SQLite (cheap), writes one `archive_stats` row to Turso.
- * Use when Turso rows-read quota is exhausted but you need the deploy KPIs /
- * status endpoint to work again after quota resets — or immediately if writes
- * are still allowed.
+ * - Local / VPS: writes into the same file DB (LIBSQL_URL=file:… or default).
+ * - Turso: compute from local file, write 1 row remotely (saves rows-read).
  *
  *   npm run push:stats
  */
@@ -13,14 +11,19 @@ import path from "path";
 import {
   closeDb,
   ensureSchema,
+  refreshArchiveStats,
   writeArchiveStats,
   type ArchiveStatus,
 } from "../src/lib/db";
 
 const LOCAL = path.join(process.cwd(), "data", "option_chain.db");
 
-async function computeLocal(): Promise<ArchiveStatus> {
-  const local = createClient({ url: `file:${LOCAL}` });
+function isRemote(url: string | undefined): boolean {
+  return Boolean(url?.startsWith("libsql://") || url?.startsWith("https://"));
+}
+
+async function computeFromFile(filePath: string): Promise<ArchiveStatus> {
+  const local = createClient({ url: `file:${filePath}` });
   const totalRs = await local.execute(`SELECT COUNT(*) AS n FROM option_chains`);
   const spanRs = await local.execute(
     `SELECT MIN(trade_date) AS lo, MAX(trade_date) AS hi, COUNT(DISTINCT trade_date) AS days FROM option_chains`
@@ -56,17 +59,26 @@ async function computeLocal(): Promise<ArchiveStatus> {
 }
 
 async function main() {
-  if (!process.env.LIBSQL_URL?.startsWith("libsql://")) {
-    throw new Error("LIBSQL_URL must point at Turso (.env.local)");
-  }
-  console.log("Computing stats from local…");
-  const stats = await computeLocal();
-  console.log(stats);
+  const url = process.env.LIBSQL_URL?.trim();
+  console.log("Target:", url || `file:${LOCAL}`);
 
-  console.log("Writing archive_stats to Turso (1 row)…");
-  await ensureSchema();
-  await writeArchiveStats(stats);
-  console.log("Done. Status endpoint will read this row instead of scanning chains.");
+  if (isRemote(url)) {
+    console.log("Computing stats from local file, writing 1 row to Turso…");
+    const stats = await computeFromFile(LOCAL);
+    console.log(stats);
+    await ensureSchema();
+    await writeArchiveStats(stats);
+  } else {
+    console.log("Refreshing archive_stats on local / VPS SQLite…");
+    // Point default client at the file DB
+    if (!url) {
+      process.env.LIBSQL_URL = `file:${LOCAL}`;
+    }
+    const stats = await refreshArchiveStats();
+    console.log(stats);
+  }
+
+  console.log("Done.");
   await closeDb();
 }
 
