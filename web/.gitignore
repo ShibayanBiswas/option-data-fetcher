@@ -34,6 +34,7 @@ yarn-error.log*
 .env*
 !.env.example
 !.env.production.example
+!.env.tunnel.example
 
 # sqlite / local archive
 /data/

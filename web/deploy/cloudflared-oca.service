@@ -1,0 +1,17 @@
+[Unit]
+Description=Cloudflare Tunnel → Option Chain Archive
+After=network-online.target oca-local.service
+Wants=network-online.target
+Requires=oca-local.service
+
+[Service]
+Type=simple
+# Quick tunnel (trycloudflare.com) — no domain required.
+# For a named tunnel + your domain, replace ExecStart with:
+#   cloudflared tunnel run oca
+ExecStart=%h/.local/bin/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:3000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

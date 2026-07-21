@@ -1,0 +1,18 @@
+[Unit]
+Description=Option Chain Archive (local PC)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Desktop/Option Data Fetcher/web
+ExecStart=%h/Desktop/Option Data Fetcher/web/deploy/run-local-dev-tunnel.sh
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+# Do not inherit Turso from user shell
+Environment=LIBSQL_URL=file:./data/option_chain.db
+
+[Install]
+WantedBy=default.target
