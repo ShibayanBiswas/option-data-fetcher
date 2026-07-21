@@ -1693,15 +1693,18 @@ html.dark .exchange-picker-badge.is-live {
   text-transform: uppercase;
   padding: 0.38rem 0.5rem;
   border-radius: 0.45rem;
-  border: 1px solid var(--ar-border);
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 12%, transparent);
   color: var(--ar-ink);
-  background: var(--ar-panel);
-  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  background: color-mix(in srgb, var(--ar-panel) 38%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 40%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .ex-pair-btn:hover {
   border-color: color-mix(in srgb, var(--ar-gold) 50%, var(--ar-border));
-  background: color-mix(in srgb, var(--ar-gold) 14%, var(--ar-panel));
+  background: color-mix(in srgb, var(--ar-gold) 14%, transparent);
 }
 
 .ex-pair--sm .ex-pair-btn {
