@@ -47,20 +47,25 @@ export function formatDbError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
   if (
-    lower.includes("401") ||
-    lower.includes("unauthorized") ||
     lower.includes("quota") ||
     lower.includes("rows read") ||
     lower.includes("rows-read") ||
     lower.includes("rate limit") ||
     lower.includes("ratelimit") ||
     lower.includes("too many requests") ||
+    lower.includes("blocked") ||
     lower.includes("429")
   ) {
     return (
-      "Turso database quota or auth blocked this request (often free-tier rows-read limit). " +
-      "Wait for the monthly quota to reset, upgrade the Turso plan, or reduce full-table scans. " +
-      "The app now caches archive stats so normal browsing should stay within limits after reset."
+      "Turso usage limit reached (rows read/written). " +
+        "Normal browsing uses cached KPIs; wait for monthly reset or upgrade the Turso plan. " +
+        "Do not re-run full-table audits against Turso."
+    );
+  }
+  if (lower.includes("401") || lower.includes("unauthorized")) {
+    return (
+      "Turso auth failed. Check LIBSQL_URL and LIBSQL_AUTH_TOKEN on Vercel " +
+        "(Production + Preview), then redeploy."
     );
   }
   if (lower.includes("fetch failed") || lower.includes("timeout")) {
@@ -72,14 +77,30 @@ export function formatDbError(err: unknown): string {
 export function isQuotaOrAuthError(err: unknown): boolean {
   const raw = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return (
-    raw.includes("401") ||
-    raw.includes("unauthorized") ||
     raw.includes("quota") ||
     raw.includes("rows read") ||
     raw.includes("rows-read") ||
     raw.includes("rate limit") ||
     raw.includes("ratelimit") ||
     raw.includes("too many requests") ||
+    raw.includes("blocked") ||
+    raw.includes("429") ||
+    raw.includes("401") ||
+    raw.includes("unauthorized")
+  );
+}
+
+/** True only for usage/quota blocks (not auth). */
+export function isQuotaError(err: unknown): boolean {
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return (
+    raw.includes("quota") ||
+    raw.includes("rows read") ||
+    raw.includes("rows-read") ||
+    raw.includes("rate limit") ||
+    raw.includes("ratelimit") ||
+    raw.includes("too many requests") ||
+    raw.includes("blocked") ||
     raw.includes("429")
   );
 }

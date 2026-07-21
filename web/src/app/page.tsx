@@ -58,7 +58,7 @@ const features = [
     kicker: "03 · Storage",
     title: "SQLite archive",
     accent: "sync",
-    body: "Local SQLite on this PC · Cloudflare Tunnel for public access.",
+    body: "Turso libSQL archive on Vercel — browse, download, and weekday auto-sync after market close.",
     href: "/schema",
   },
   {

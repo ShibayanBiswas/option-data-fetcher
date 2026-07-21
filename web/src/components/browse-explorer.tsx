@@ -161,13 +161,13 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
     return (
       <div className="glass rounded-2xl p-8 text-center">
         <p className="font-serif text-xl text-[var(--ar-maroon)]">
-          {quota ? "Database quota exhausted" : "Unable to load"}
+          {quota ? "Database temporarily unavailable" : "Unable to load"}
         </p>
         <p className="mt-2 font-ui text-sm text-[var(--ar-muted)]">{message}</p>
         <p className="mt-4 font-ui text-xs text-[var(--ar-subtle)]">
           {quota
-            ? "The archive database could not be opened. Confirm data/option_chain.db exists and the Cloudflare Tunnel services are running (oca-local)."
-            : "If this is a fresh deploy, use Sync Today to pull the latest bhavcopy into the archive."}
+            ? "Usually Turso auth/env missing on Vercel, or a temporary usage limit. Confirm LIBSQL_URL + LIBSQL_AUTH_TOKEN, then retry."
+            : "If this is a fresh deploy, confirm Turso env vars on Vercel and use Sync Today after market close."}
         </p>
       </div>
     );
