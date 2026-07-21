@@ -22,14 +22,21 @@ export function HScrollSection({
 }) {
   const railRef = useRef<HTMLDivElement>(null);
 
+  /** Map vertical wheel to horizontal only when the rail can actually move that way. */
   const onWheel = (e: WheelEvent<HTMLDivElement>) => {
     const el = railRef.current;
     if (!el) return;
-    if (el.scrollWidth <= el.clientWidth) return;
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      el.scrollLeft += e.deltaY;
-      e.preventDefault();
-    }
+    if (el.scrollWidth <= el.clientWidth + 1) return;
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+
+    const next = el.scrollLeft + e.deltaY;
+    const max = el.scrollWidth - el.clientWidth;
+    const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+    const atEnd = el.scrollLeft >= max - 1 && e.deltaY > 0;
+    if (atStart || atEnd) return;
+
+    el.scrollLeft = Math.max(0, Math.min(max, next));
+    e.preventDefault();
   };
 
   return (
@@ -75,7 +82,9 @@ export function HScrollCard({
   footer?: ReactNode;
 }) {
   const inner = (
-    <article className={`h-scroll-card h-scroll-card--${size} h-scroll-card--${accent}`}>
+    <article
+      className={`h-scroll-card water-surface h-scroll-card--${size} h-scroll-card--${accent}`}
+    >
       <div className="h-scroll-card-rail" aria-hidden />
       <div className="relative z-[1] h-scroll-card-body">
         <div className="h-scroll-card-main">{children}</div>

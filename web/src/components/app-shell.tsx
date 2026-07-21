@@ -9,6 +9,7 @@ import {
   ARCHIVE_UPDATED_EVENT,
   emitArchiveUpdated,
   fetchArchiveStatus,
+  statusFingerprint,
   type ArchiveStatusPayload,
 } from "@/lib/archive-events";
 
@@ -110,28 +111,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Live status: load once, poll periodically, listen for updates.
   useEffect(() => {
     let cancelled = false;
+    let lastFp = "";
 
-    const apply = (status: ArchiveStatusPayload | null) => {
+    const apply = (status: ArchiveStatusPayload | null, broadcast = false) => {
       if (cancelled || !status) return;
+      const fp = statusFingerprint(status);
+      if (fp === lastFp) return;
+      lastFp = fp;
       if (status.latestTradeDate) setLatestTradeDate(status.latestTradeDate);
+      if (broadcast) emitArchiveUpdated(status);
     };
 
-    void refreshAndBroadcast().then(apply);
+    void fetchArchiveStatus().then((status) => apply(status, true));
 
     const onUpdated = (e: Event) => {
-      const detail = (e as CustomEvent<ArchiveStatusPayload>).detail;
-      apply(detail);
+      apply((e as CustomEvent<ArchiveStatusPayload>).detail, false);
     };
     window.addEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
 
     const poll = window.setInterval(() => {
-      void fetchArchiveStatus().then((status) => {
-        if (status) {
-          apply(status);
-          emitArchiveUpdated(status);
-        }
-      });
-    }, 60_000);
+      void fetchArchiveStatus().then((status) => apply(status, true));
+    }, 120_000);
 
     return () => {
       cancelled = true;

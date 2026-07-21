@@ -20,6 +20,7 @@ import { SexyKpi } from "@/components/sexy-card";
 import {
   ARCHIVE_UPDATED_EVENT,
   fetchArchiveStatus,
+  statusFingerprint,
   type ArchiveStatusPayload,
 } from "@/lib/archive-events";
 
@@ -194,9 +195,13 @@ function HomeBody() {
 
   useEffect(() => {
     let cancelled = false;
+    let lastFp = "";
 
     const apply = (payload: ArchiveStatusPayload | null) => {
       if (cancelled || !payload) return;
+      const fp = statusFingerprint(payload);
+      if (fp === lastFp) return;
+      lastFp = fp;
       setStatus(payload as Status);
     };
 
@@ -209,7 +214,7 @@ function HomeBody() {
 
     const poll = window.setInterval(() => {
       void fetchArchiveStatus().then(apply);
-    }, 60_000);
+    }, 120_000);
 
     return () => {
       cancelled = true;

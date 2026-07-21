@@ -19,7 +19,7 @@ export function BrowseShell({ children }: { children: React.ReactNode }) {
         <ArchiveSidebar />
       </Suspense>
       <div className="archive-main">
-        <div className="archive-main-scroll">
+        <div className="archive-main-scroll scrollbar-thin">
           <PageTransition>{children}</PageTransition>
         </div>
       </div>

@@ -19,7 +19,7 @@ export function SexyCard({
   onClick,
 }: SexyCardProps) {
   const inner = (
-    <div className={`sexy-card ${className}`} onClick={onClick}>
+    <div className={`sexy-card water-surface ${className}`} onClick={onClick}>
       <div className="sexy-card-rail" aria-hidden />
       <div className="relative z-[1]">{children}</div>
     </div>

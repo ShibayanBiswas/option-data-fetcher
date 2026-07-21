@@ -21,6 +21,21 @@ export function emitArchiveUpdated(detail: ArchiveStatusPayload = {}) {
   );
 }
 
+export function statusFingerprint(status: ArchiveStatusPayload | null | undefined): string {
+  if (!status) return "";
+  return [
+    status.latestTradeDate ?? "",
+    status.earliestTradeDate ?? "",
+    status.tradingDays ?? "",
+    status.totalDocuments ?? "",
+    status.symbolCount ?? "",
+    status.segments?.INDEX ?? "",
+    status.segments?.STOCK ?? "",
+    status.segments?.OTHER ?? "",
+    status.synced ? "1" : "0",
+  ].join("|");
+}
+
 export async function fetchArchiveStatus(): Promise<ArchiveStatusPayload | null> {
   try {
     const res = await fetch("/api/sync", {
