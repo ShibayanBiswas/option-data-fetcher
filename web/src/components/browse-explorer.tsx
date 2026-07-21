@@ -95,10 +95,13 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
     setError(null);
     const qs = new URLSearchParams({ path: apiPath });
     if (sectorParam) qs.set("sector", sectorParam);
-    fetch(`/api/browse?${qs.toString()}`, { cache: "no-store", credentials: "same-origin" })
+    fetch(`/api/browse?${qs.toString()}`, { credentials: "same-origin" })
       .then(async (res) => {
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Failed to browse");
+        if (!res.ok) {
+          const msg = json.error || "Failed to browse";
+          throw new Error(json.quota ? `QUOTA:${msg}` : msg);
+        }
         if (!cancelled) setData(json);
       })
       .catch((err) => {
@@ -153,12 +156,18 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
   }
 
   if (error || !data) {
+    const quota = Boolean(error?.startsWith("QUOTA:"));
+    const message = quota ? error!.slice(6) : error;
     return (
       <div className="glass rounded-2xl p-8 text-center">
-        <p className="font-serif text-xl text-[var(--ar-maroon)]">Unable to load</p>
-        <p className="mt-2 font-ui text-sm text-[var(--ar-muted)]">{error}</p>
+        <p className="font-serif text-xl text-[var(--ar-maroon)]">
+          {quota ? "Database quota exhausted" : "Unable to load"}
+        </p>
+        <p className="mt-2 font-ui text-sm text-[var(--ar-muted)]">{message}</p>
         <p className="mt-4 font-ui text-xs text-[var(--ar-subtle)]">
-          If this is a fresh deploy, use Sync Today to pull the latest bhavcopy into the archive.
+          {quota
+            ? "Turso free-tier rows-read limit is full — the whole account is blocked until the quota resets or you upgrade. After reset, this app uses a cached stats row so KPI loads no longer scan ~800k chain files."
+            : "If this is a fresh deploy, use Sync Today to pull the latest bhavcopy into the archive."}
         </p>
       </div>
     );

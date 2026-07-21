@@ -1,6 +1,6 @@
 import { distinctValues, findChains } from "./db";
 import { hrefForPath, readLocalChain } from "./storage";
-import { PREFERRED_COLUMNS, SEGMENT_LABELS, SEGMENT_ORDER } from "./constants";
+import { PREFERRED_COLUMNS, SEGMENT_LABELS } from "./constants";
 import { groupSymbolsBySector, SECTORS, sectorForSymbol } from "./sectors";
 import type {
   BrowseChild,
@@ -115,13 +115,13 @@ export async function browse(
   const crumbs = breadcrumbsFor(path, options.sector);
 
   if (level === "root") {
-    const exchanges = await distinctValues("exchange");
+    // Hardcode exchange shells — avoids DISTINCT scan just to list NSE/BSE.
     const children: BrowseChild[] = (["NSE", "BSE"] as const).map((ex) => ({
       id: ex,
       label: ex,
       href: hrefForPath({ exchange: ex }),
-      meta: exchanges.includes(ex) ? "Live archive" : "Awaiting first sync",
-      count: exchanges.includes(ex) ? 1 : 0,
+      meta: "Live archive",
+      count: 1,
     }));
     return {
       level,
@@ -136,19 +136,13 @@ export async function browse(
   }
 
   if (level === "exchange" && path.exchange) {
-    const present = new Set(
-      (await distinctValues("segment", { exchange: path.exchange })) as Segment[]
-    );
-    // Always surface INDEX + STOCK; include OTHER only when data exists.
-    const segmentsToShow = SEGMENT_ORDER.filter(
-      (seg) => seg !== "OTHER" || present.has(seg)
-    );
-    const children: BrowseChild[] = segmentsToShow.map((seg) => ({
+    // Always surface INDEX + STOCK without a DISTINCT segment scan.
+    const children: BrowseChild[] = (["INDEX", "STOCK"] as const).map((seg) => ({
       id: seg,
       label: SEGMENT_LABELS[seg],
       href: hrefForPath({ exchange: path.exchange, segment: seg }),
-      meta: present.has(seg) ? "Archived" : "No data yet",
-      count: present.has(seg) ? 1 : 0,
+      meta: "Archived",
+      count: 1,
     }));
     return {
       level,

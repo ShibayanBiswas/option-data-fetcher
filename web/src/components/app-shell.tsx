@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Live status: load once, poll periodically, listen for updates.
+  // Live status: load once; refresh only on archive-updated events (no poll — saves Turso rows-read).
   useEffect(() => {
     let cancelled = false;
     let lastFp = "";
@@ -129,14 +129,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
 
-    const poll = window.setInterval(() => {
-      void fetchArchiveStatus().then((status) => apply(status, true));
-    }, 120_000);
-
     return () => {
       cancelled = true;
       window.removeEventListener(ARCHIVE_UPDATED_EVENT, onUpdated);
-      window.clearInterval(poll);
     };
   }, []);
 
@@ -163,8 +158,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         const json = (await res.json().catch(() => ({}))) as {
           status?: SyncStatus;
           message?: string;
+          quota?: boolean;
+          error?: string;
         };
         if (cancelled) return;
+        // Don't hammer Turso when quota/auth is blocking the account.
+        if (res.status === 503 || json.quota) return;
         const wrote =
           json.status === "synced" || json.status === "partial";
         await refreshAndBroadcast(wrote);

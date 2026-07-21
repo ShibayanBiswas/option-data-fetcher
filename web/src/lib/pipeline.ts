@@ -18,6 +18,7 @@ import {
 import {
   countChains,
   ensureSchema,
+  refreshArchiveStats,
   upsertChainDocs,
 } from "./db";
 import type { Exchange, OptionChainDoc, OptionRow, Segment, SyncResult } from "./types";
@@ -316,6 +317,18 @@ export async function syncTradeDate(
   } else {
     result.status = "synced";
     result.message = `Synced ${tradeDate}: ${result.saved.toLocaleString()} chain files stored in SQLite.`;
+  }
+
+  // Refresh one-row KPI cache after writes (avoids COUNT(*) on every page load).
+  if (result.saved > 0 && process.env.SKIP_STATS_REFRESH !== "1") {
+    try {
+      await refreshArchiveStats();
+    } catch (err) {
+      console.warn(
+        "archive_stats refresh skipped:",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   return result;

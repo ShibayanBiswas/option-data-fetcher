@@ -14,8 +14,8 @@ import {
   closeDb,
   dropAllChains,
   ensureSchema,
-  getArchiveStatus,
   getDbClient,
+  refreshArchiveStats,
 } from "../src/lib/db";
 import {
   fetchTradingDates,
@@ -227,12 +227,15 @@ async function main() {
   console.log("Cleared.");
 
   console.log("\n—— 2/3 Parallel copy local → Turso ——");
+  process.env.SKIP_STATS_REFRESH = "1";
   await parallelCopy();
 
   console.log("\n—— 3/3 Backfill newer bhavcopy sessions ——");
   await backfillTail();
 
-  const status = await getArchiveStatus();
+  process.env.SKIP_STATS_REFRESH = "0";
+  console.log("\nRefreshing archive_stats…");
+  const status = await refreshArchiveStats();
   console.log("\n—— Turso ready ——");
   console.log({
     docs: status.totalDocuments,

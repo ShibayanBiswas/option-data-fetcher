@@ -20,6 +20,7 @@
     "audit:archive": "tsx --env-file=.env.local scripts/audit-archive.ts",
     "audit:final": "tsx --env-file=.env.local scripts/audit-final.ts",
     "compare:dbs": "tsx --env-file=.env.local scripts/compare-local-turso.ts",
+    "push:stats": "tsx --env-file=.env.local scripts/push-archive-stats.ts",
     "reclassify": "tsx --env-file=.env.local scripts/reclassify-segments.ts",
     "audit:segments": "tsx --env-file=.env.local scripts/audit-segments.ts",
     "typecheck": "tsc --noEmit"

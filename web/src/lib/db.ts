@@ -21,6 +21,60 @@ export type ChainFilter = {
 
 declare global {
   var _libsqlClient: Client | undefined;
+  var _libsqlSchemaReady: boolean | undefined;
+  var _archiveStatusCache:
+    | { at: number; value: ArchiveStatus }
+    | undefined;
+}
+
+export type ArchiveStatus = {
+  totalDocuments: number;
+  earliestTradeDate: string | null;
+  latestTradeDate: string | null;
+  tradingDays: number;
+  exchanges: string[];
+  symbolCount: number;
+  segments: { INDEX: number; STOCK: number; OTHER: number };
+};
+
+function isRemoteLibsql(): boolean {
+  const url = process.env.LIBSQL_URL?.trim() || "";
+  return url.startsWith("libsql://") || url.startsWith("https://");
+}
+
+/** Human-readable Turso / libSQL errors (quota, auth, etc.). */
+export function formatDbError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("401") ||
+    lower.includes("unauthorized") ||
+    lower.includes("quota") ||
+    lower.includes("rows read") ||
+    lower.includes("rate limit") ||
+    lower.includes("429")
+  ) {
+    return (
+      "Turso database quota or auth blocked this request (often free-tier rows-read limit). " +
+      "Wait for the monthly quota to reset, upgrade the Turso plan, or reduce full-table scans. " +
+      "The app now caches archive stats so normal browsing should stay within limits after reset."
+    );
+  }
+  if (lower.includes("fetch failed") || lower.includes("timeout")) {
+    return "Database connection timed out. Retry in a moment.";
+  }
+  return raw || "Database error";
+}
+
+export function isQuotaOrAuthError(err: unknown): boolean {
+  const raw = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return (
+    raw.includes("401") ||
+    raw.includes("unauthorized") ||
+    raw.includes("quota") ||
+    raw.includes("rows read") ||
+    raw.includes("429")
+  );
 }
 
 function resolveDbUrl(): { url: string; authToken?: string } {
@@ -74,6 +128,7 @@ export function getDbClient(): Client {
 }
 
 export async function ensureSchema(): Promise<void> {
+  if (global._libsqlSchemaReady) return;
   const db = getDbClient();
   await db.execute(`
     CREATE TABLE IF NOT EXISTS option_chains (
@@ -101,6 +156,23 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(
     `CREATE INDEX IF NOT EXISTS idx_chains_side_dates ON option_chains(exchange, segment, symbol, side, trade_date)`
   );
+  // One-row KPI cache — avoids COUNT(*) / DISTINCT scans on every page load (Turso rows-read).
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS archive_stats (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      total_documents INTEGER NOT NULL DEFAULT 0,
+      earliest_trade_date TEXT,
+      latest_trade_date TEXT,
+      trading_days INTEGER NOT NULL DEFAULT 0,
+      symbol_count INTEGER NOT NULL DEFAULT 0,
+      index_files INTEGER NOT NULL DEFAULT 0,
+      stock_files INTEGER NOT NULL DEFAULT 0,
+      other_files INTEGER NOT NULL DEFAULT 0,
+      exchanges_json TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    )
+  `);
+  global._libsqlSchemaReady = true;
 }
 
 /** @deprecated alias — schema replaces Mongo indexes */
@@ -243,7 +315,11 @@ export async function countChains(filter: ChainFilter = {}): Promise<number> {
 }
 
 const distinctCache = new Map<string, { at: number; values: string[] }>();
-const DISTINCT_TTL_MS = 15_000;
+
+function distinctTtlMs(): number {
+  // Longer TTL on Turso — DISTINCT over large tables burns rows-read quota.
+  return isRemoteLibsql() ? 10 * 60_000 : 30_000;
+}
 
 export async function distinctValues(
   field: keyof ChainFilter | "tradeDate" | "expiryDate" | "exchange" | "segment" | "symbol" | "side",
@@ -263,7 +339,7 @@ export async function distinctValues(
 
   const cacheKey = `${field}:${JSON.stringify(filter)}`;
   const hit = distinctCache.get(cacheKey);
-  if (hit && Date.now() - hit.at < DISTINCT_TTL_MS) {
+  if (hit && Date.now() - hit.at < distinctTtlMs()) {
     return hit.values;
   }
 
@@ -283,9 +359,10 @@ export async function distinctValues(
   return values;
 }
 
-/** Clear distinct cache after writes (sync / seed). */
+/** Clear distinct + status caches after writes (sync / seed). */
 export function invalidateDistinctCache(): void {
   distinctCache.clear();
+  global._archiveStatusCache = undefined;
 }
 
 export async function findChains(
@@ -311,15 +388,54 @@ export async function findChains(
   return rs.rows.map((r) => rowToDoc(r as Record<string, unknown>));
 }
 
-export async function getArchiveStatus(): Promise<{
-  totalDocuments: number;
-  earliestTradeDate: string | null;
-  latestTradeDate: string | null;
-  tradingDays: number;
-  exchanges: string[];
-  symbolCount: number;
-  segments: { INDEX: number; STOCK: number; OTHER: number };
-}> {
+export async function getArchiveStatus(): Promise<ArchiveStatus> {
+  await ensureSchema();
+
+  const memTtl = isRemoteLibsql() ? 5 * 60_000 : 30_000;
+  const cached = global._archiveStatusCache;
+  if (cached && Date.now() - cached.at < memTtl) {
+    return cached.value;
+  }
+
+  const db = getDbClient();
+  const rs = await db.execute(
+    `SELECT * FROM archive_stats WHERE id = 1 LIMIT 1`
+  );
+  const row = rs.rows[0] as Record<string, unknown> | undefined;
+
+  if (row) {
+    let exchanges: string[] = ["NSE", "BSE"];
+    try {
+      const parsed = JSON.parse(String(row.exchanges_json ?? "[]"));
+      if (Array.isArray(parsed) && parsed.length) exchanges = parsed.map(String);
+    } catch {
+      /* keep default */
+    }
+    const value: ArchiveStatus = {
+      totalDocuments: Number(row.total_documents ?? 0),
+      earliestTradeDate: (row.earliest_trade_date as string) ?? null,
+      latestTradeDate: (row.latest_trade_date as string) ?? null,
+      tradingDays: Number(row.trading_days ?? 0),
+      exchanges,
+      symbolCount: Number(row.symbol_count ?? 0),
+      segments: {
+        INDEX: Number(row.index_files ?? 0),
+        STOCK: Number(row.stock_files ?? 0),
+        OTHER: Number(row.other_files ?? 0),
+      },
+    };
+    global._archiveStatusCache = { at: Date.now(), value };
+    return value;
+  }
+
+  // First boot / empty meta — one expensive recompute (avoid on every request).
+  return refreshArchiveStats();
+}
+
+/**
+ * Full-table recompute of archive_stats. Expensive on Turso — call after sync/seed only.
+ */
+export async function refreshArchiveStats(): Promise<ArchiveStatus> {
   await ensureSchema();
   const db = getDbClient();
   const totalRs = await db.execute(`SELECT COUNT(*) AS n FROM option_chains`);
@@ -339,12 +455,13 @@ export async function getArchiveStatus(): Promise<{
   for (const r of segRs.rows) {
     segMap[String(r.s)] = Number(r.n);
   }
-  return {
+  const exchanges = exRs.rows.map((r) => String(r.v)).filter(Boolean);
+  const value: ArchiveStatus = {
     totalDocuments: Number(totalRs.rows[0]?.n ?? 0),
     earliestTradeDate: (spanRs.rows[0]?.lo as string) ?? null,
     latestTradeDate: (spanRs.rows[0]?.hi as string) ?? null,
     tradingDays: Number(spanRs.rows[0]?.days ?? 0),
-    exchanges: exRs.rows.map((r) => String(r.v)),
+    exchanges: exchanges.length ? exchanges : ["NSE", "BSE"],
     symbolCount: Number(symRs.rows[0]?.n ?? 0),
     segments: {
       INDEX: segMap.INDEX ?? 0,
@@ -352,12 +469,91 @@ export async function getArchiveStatus(): Promise<{
       OTHER: segMap.OTHER ?? 0,
     },
   };
+
+  await db.execute({
+    sql: `
+      INSERT INTO archive_stats (
+        id, total_documents, earliest_trade_date, latest_trade_date,
+        trading_days, symbol_count, index_files, stock_files, other_files,
+        exchanges_json, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        total_documents = excluded.total_documents,
+        earliest_trade_date = excluded.earliest_trade_date,
+        latest_trade_date = excluded.latest_trade_date,
+        trading_days = excluded.trading_days,
+        symbol_count = excluded.symbol_count,
+        index_files = excluded.index_files,
+        stock_files = excluded.stock_files,
+        other_files = excluded.other_files,
+        exchanges_json = excluded.exchanges_json,
+        updated_at = excluded.updated_at
+    `,
+    args: [
+      value.totalDocuments,
+      value.earliestTradeDate,
+      value.latestTradeDate,
+      value.tradingDays,
+      value.symbolCount,
+      value.segments.INDEX,
+      value.segments.STOCK,
+      value.segments.OTHER,
+      JSON.stringify(value.exchanges),
+      new Date().toISOString(),
+    ],
+  });
+
+  global._archiveStatusCache = { at: Date.now(), value };
+  return value;
+}
+
+/**
+ * Write precomputed KPI stats (e.g. from local SQLite) without scanning Turso chains.
+ * Use when free-tier rows-read is exhausted but writes still work, or after a bulk copy.
+ */
+export async function writeArchiveStats(value: ArchiveStatus): Promise<void> {
+  await ensureSchema();
+  const db = getDbClient();
+  await db.execute({
+    sql: `
+      INSERT INTO archive_stats (
+        id, total_documents, earliest_trade_date, latest_trade_date,
+        trading_days, symbol_count, index_files, stock_files, other_files,
+        exchanges_json, updated_at
+      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        total_documents = excluded.total_documents,
+        earliest_trade_date = excluded.earliest_trade_date,
+        latest_trade_date = excluded.latest_trade_date,
+        trading_days = excluded.trading_days,
+        symbol_count = excluded.symbol_count,
+        index_files = excluded.index_files,
+        stock_files = excluded.stock_files,
+        other_files = excluded.other_files,
+        exchanges_json = excluded.exchanges_json,
+        updated_at = excluded.updated_at
+    `,
+    args: [
+      value.totalDocuments,
+      value.earliestTradeDate,
+      value.latestTradeDate,
+      value.tradingDays,
+      value.symbolCount,
+      value.segments.INDEX,
+      value.segments.STOCK,
+      value.segments.OTHER,
+      JSON.stringify(value.exchanges.length ? value.exchanges : ["NSE", "BSE"]),
+      new Date().toISOString(),
+    ],
+  });
+  global._archiveStatusCache = { at: Date.now(), value };
 }
 
 export async function dropAllChains(): Promise<void> {
   await ensureSchema();
   const db = getDbClient();
   await db.execute(`DELETE FROM option_chains`);
+  await db.execute(`DELETE FROM archive_stats`);
   invalidateDistinctCache();
 }
 
@@ -369,4 +565,6 @@ export async function closeDb(): Promise<void> {
     /* ignore */
   }
   global._libsqlClient = undefined;
+  global._libsqlSchemaReady = undefined;
+  global._archiveStatusCache = undefined;
 }

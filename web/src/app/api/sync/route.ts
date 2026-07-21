@@ -4,7 +4,12 @@ import {
   syncLatestAvailable,
   syncTradeDate,
 } from "@/lib/pipeline";
-import { ensureSchema, getArchiveStatus } from "@/lib/db";
+import {
+  ensureSchema,
+  formatDbError,
+  getArchiveStatus,
+  isQuotaOrAuthError,
+} from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,14 +57,27 @@ export async function GET() {
   try {
     await ensureSchema();
     const status = await getArchiveStatus();
-    return NextResponse.json({
-      ok: true,
-      ...status,
-    });
-  } catch (err) {
     return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : "Status failed" },
-      { status: 500 }
+      {
+        ok: true,
+        ...status,
+      },
+      {
+        headers: {
+          // KPI meta is one row — safe to cache briefly at the edge/browser.
+          "Cache-Control": "public, s-maxage=120, stale-while-revalidate=600",
+        },
+      }
+    );
+  } catch (err) {
+    const message = formatDbError(err);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: message,
+        quota: isQuotaOrAuthError(err),
+      },
+      { status: isQuotaOrAuthError(err) ? 503 : 500 }
     );
   }
 }
@@ -113,8 +131,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Sync failed" },
-      { status: 500 }
+      {
+        error: formatDbError(err),
+        quota: isQuotaOrAuthError(err),
+      },
+      { status: isQuotaOrAuthError(err) ? 503 : 500 }
     );
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTreeChildren } from "@/lib/tree";
+import { formatDbError, isQuotaOrAuthError } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,9 +19,14 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (err) {
+    const quota = isQuotaOrAuthError(err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Tree failed", children: [] },
-      { status: 500 }
+      {
+        error: formatDbError(err),
+        quota,
+        children: [],
+      },
+      { status: quota ? 503 : 500 }
     );
   }
 }

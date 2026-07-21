@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pathFromSegments } from "@/lib/storage";
 import { browse } from "@/lib/browse";
+import { formatDbError, isQuotaOrAuthError } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,16 +20,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, {
       headers: {
         "Cache-Control": isLeaf
-          ? "private, max-age=60, stale-while-revalidate=120"
-          : "private, max-age=20, stale-while-revalidate=40",
+          ? "private, max-age=120, stale-while-revalidate=300"
+          : "private, max-age=60, stale-while-revalidate=180",
       },
     });
   } catch (err) {
+    const quota = isQuotaOrAuthError(err);
     return NextResponse.json(
       {
-        error: err instanceof Error ? err.message : "Browse failed",
+        error: formatDbError(err),
+        quota,
       },
-      { status: 500 }
+      { status: quota ? 503 : 500 }
     );
   }
 }

@@ -165,6 +165,28 @@ You are done when: Vercel build is green, KPIs show full span, Sync Today writes
 
 ---
 
+## Turso free-tier quota (rows read)
+
+Full-table `COUNT(*)` / `DISTINCT` over ~800k chain files burns the free **rows read** quota fast. When the limit hits **100%**, Turso blocks the whole account (often as HTTP **401** / “Unable to load”).
+
+**App mitigations (already in code):**
+- One-row `archive_stats` table for KPIs / `/api/sync` GET (no full scan per page load)
+- Longer browse caches + no status polling every 2 minutes
+- Friendlier “quota exhausted” UI instead of a bare 401
+
+**If the account is already blocked:**
+1. Wait for the monthly quota to reset, **or** upgrade Turso (from ~$4.99/mo)
+2. After access returns, seed the stats row without scanning Turso chains:
+
+```bash
+cd web
+npm run push:stats
+```
+
+3. Redeploy / hard-refresh the Vercel site
+
+---
+
 ## Project wind-up checklist
 
 - [x] CSV-only downloads (Excel removed)
