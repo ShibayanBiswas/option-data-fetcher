@@ -14,6 +14,7 @@
     "seed:fresh": "tsx --env-file=.env.local scripts/fresh-seed-all.ts",
     "seed:backfill": "tsx --env-file=.env.local scripts/seed-backfill.ts",
     "seed:turso": "tsx --env-file=.env.local scripts/turso-fresh-seed.ts",
+    "seed:turso:fast": "tsx --env-file=.env.local scripts/turso-from-local.ts",
     "seed:turso:local": "tsx --env-file=.env.local scripts/turso-from-local.ts",
     "check:turso": "tsx --env-file=.env.local scripts/check-turso.ts",
     "reclassify": "tsx --env-file=.env.local scripts/reclassify-segments.ts",
