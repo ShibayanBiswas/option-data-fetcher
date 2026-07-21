@@ -299,7 +299,7 @@ body {
 .exchange-picker-tile::after,
 .flow-pipe-card::after,
 .flow-node-shell::after,
-.kpi-band-grid .sexy-card::after {
+.kpi-band-card::after {
   content: "";
   pointer-events: none;
   position: absolute;
@@ -322,11 +322,12 @@ html.dark .h-scroll-card::after,
 html.dark .hero-quick-card::after,
 html.dark .exchange-picker-tile::after,
 html.dark .flow-pipe-card::after,
-html.dark .flow-node-shell::after {
+html.dark .flow-node-shell::after,
+html.dark .kpi-band-card::after {
   background: linear-gradient(
     105deg,
     transparent 18%,
-    color-mix(in srgb, white 18%, transparent) 48%,
+    color-mix(in srgb, var(--ar-gold) 28%, transparent) 48%,
     transparent 74%
   );
 }
@@ -337,7 +338,8 @@ html.dark .flow-node-shell::after {
 .hero-quick-card:hover::after,
 .exchange-picker-tile:hover::after,
 .flow-pipe-card:hover::after,
-.flow-node-shell:hover::after {
+.flow-node-shell:hover::after,
+.kpi-band-card:hover::after {
   animation: water-sheen 0.9s ease forwards;
 }
 
@@ -687,6 +689,56 @@ html.dark .brand-logo--dark {
   max-width: 13.25rem;
   scroll-snap-align: start;
   box-sizing: border-box;
+  /* Allow gold rail + water sheen to paint (contain was clipping them) */
+  contain: none;
+  overflow: hidden;
+}
+
+.kpi-band-card .sexy-card-rail {
+  left: 0.85rem;
+  right: 0.85rem;
+  height: 2.5px;
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ar-gold) 55%, transparent) 18%,
+    var(--ar-gold) 50%,
+    color-mix(in srgb, var(--ar-gold) 55%, transparent) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ar-gold) 45%, transparent);
+}
+
+/* Matching gold accent at the bottom — same language as other desk cards */
+.kpi-band-card::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  left: 0.85rem;
+  right: 0.85rem;
+  bottom: 0;
+  height: 2.5px;
+  z-index: 2;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ar-gold) 55%, transparent) 18%,
+    var(--ar-gold) 50%,
+    color-mix(in srgb, var(--ar-gold) 55%, transparent) 82%,
+    transparent 100%
+  );
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ar-gold) 40%, transparent);
+  opacity: 1;
+}
+
+.kpi-band-card:hover {
+  border-color: color-mix(in srgb, var(--ar-gold) 55%, var(--ar-border));
+}
+
+.kpi-band-card:hover::after {
+  animation: water-sheen 0.9s ease forwards;
 }
 
 .kpi-card {
@@ -714,18 +766,34 @@ html.dark .brand-logo--dark {
   margin-top: 0.45rem;
   font-family: var(--font-data), ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.88rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums;
-  color: var(--ar-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  background: linear-gradient(
+    135deg,
+    var(--ar-maroon) 0%,
+    var(--ar-gold-dark) 45%,
+    var(--ar-gold) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 html.dark .kpi-card-value {
-  color: var(--ar-gold-light);
+  background: linear-gradient(
+    135deg,
+    var(--ar-maroon) 0%,
+    var(--ar-gold-light) 55%,
+    var(--ar-gold) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .dropdown-panel {
@@ -2259,6 +2327,7 @@ html.dark ::selection {
   .exchange-picker-tile::after,
   .flow-pipe-card::after,
   .flow-node-shell::after,
+  .kpi-band-card::after,
   .btn-gold::before,
   .btn-maroon::before,
   .btn-ghost::before {
