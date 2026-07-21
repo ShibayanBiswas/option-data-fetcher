@@ -220,9 +220,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const closeDialog = useCallback(() => {
     setDialog((d) => {
-      const reload = d.reload;
-      if (reload) {
-        queueMicrotask(() => window.location.reload());
+      if (d.reload) {
+        void refreshAndBroadcast(true);
       }
       return { ...d, open: false };
     });
@@ -254,7 +253,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         title={dialog.title}
         message={dialog.message}
         variant={dialog.variant}
-        primaryLabel={dialog.reload ? "Refresh view" : "OK"}
+        primaryLabel={dialog.reload ? "Update view" : "OK"}
         onClose={closeDialog}
       />
     </div>

@@ -685,13 +685,14 @@ html.dark .brand-logo--dark {
 
 .kpi-card {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   border-radius: 1rem;
   padding: 0.95rem 1rem;
-  background: color-mix(in srgb, var(--ar-surface) 92%, transparent);
+  background: color-mix(in srgb, var(--ar-surface) 96%, transparent);
   border: 1px solid var(--ar-border);
   box-shadow: var(--ar-shadow);
-  backdrop-filter: blur(14px);
+  contain: layout paint;
 }
 
 .kpi-card-label {
@@ -1199,13 +1200,31 @@ html.dark .archive-tree-icon {
 }
 
 .flow-node--root {
-  background: linear-gradient(135deg, rgba(122, 30, 44, 0.95), rgba(184, 134, 11, 0.92));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #7a1e2c 92%, transparent),
+    color-mix(in srgb, #b8860b 88%, transparent)
+  );
   color: #fff;
   border-color: transparent;
 }
 
 .flow-node--root .flow-node-meta {
   color: rgba(255, 255, 255, 0.78);
+}
+
+html.dark .flow-node--root {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ar-maroon) 35%, var(--ar-panel)),
+    color-mix(in srgb, var(--ar-gold) 28%, var(--ar-panel))
+  );
+  color: var(--ar-ink);
+  border-color: color-mix(in srgb, var(--ar-gold) 40%, var(--ar-border));
+}
+
+html.dark .flow-node--root .flow-node-meta {
+  color: var(--ar-subtle);
 }
 
 .flow-node--accent {
@@ -1417,9 +1436,19 @@ html.dark .archive-tree-icon {
   border-radius: 0.5rem;
   background: var(--ar-panel);
   color: var(--ar-ink);
+  color-scheme: inherit;
   padding: 0.3rem 0.45rem;
   font-family: var(--font-sans);
   font-size: 0.78rem;
+}
+
+.date-range-field input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.65;
+  cursor: pointer;
+}
+
+html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85) sepia(0.35) saturate(2) hue-rotate(5deg);
 }
 
 .date-list-scroll {
@@ -2126,6 +2155,77 @@ html.dark .download-btn-success {
 
 .data-table tbody tr:hover {
   background: color-mix(in srgb, var(--ar-gold) 8%, var(--ar-table-row));
+}
+
+/* —— Dark mode polish (token-driven surfaces stay readable) —— */
+html.dark .bg-mesh::before {
+  background:
+    radial-gradient(ellipse 50% 40% at 15% 20%, rgba(212, 178, 76, 0.12), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 85% 10%, rgba(201, 168, 130, 0.08), transparent 70%);
+}
+
+html.dark .desk-ambient-orb {
+  opacity: 0.14;
+}
+
+html.dark .archive-shell {
+  background: color-mix(in srgb, var(--ar-surface) 92%, transparent);
+  border-color: var(--ar-border);
+}
+
+html.dark .archive-sidebar {
+  background: color-mix(in srgb, var(--ar-surface) 96%, #000);
+}
+
+html.dark .archive-main {
+  background: color-mix(in srgb, var(--ar-panel) 70%, transparent);
+}
+
+html.dark .archive-tree-row:hover {
+  background: color-mix(in srgb, var(--ar-gold) 12%, transparent);
+}
+
+html.dark .archive-tree-row-active {
+  background: color-mix(in srgb, var(--ar-gold) 16%, transparent);
+}
+
+html.dark .sexy-card,
+html.dark .h-scroll-card,
+html.dark .hero-quick-card,
+html.dark .exchange-picker-tile,
+html.dark .flow-pipe-card,
+html.dark .date-range-bar,
+html.dark .glass,
+html.dark .dropdown-panel {
+  background: color-mix(in srgb, var(--ar-surface) 94%, transparent);
+  box-shadow: var(--ar-shadow);
+}
+
+html.dark .btn-pill-active {
+  color: var(--ar-ink);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ar-maroon) 32%, transparent),
+    color-mix(in srgb, var(--ar-gold) 26%, transparent)
+  );
+}
+
+html.dark .scrollbar-thin {
+  scrollbar-color: color-mix(in srgb, var(--ar-gold) 35%, transparent) transparent;
+}
+
+html.dark .data-table thead th {
+  color: var(--ar-gold-light);
+}
+
+html.dark .desk-footer {
+  border-color: var(--ar-border);
+  color: var(--ar-subtle);
+}
+
+html.dark ::selection {
+  background: color-mix(in srgb, var(--ar-gold) 35%, transparent);
+  color: var(--ar-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {

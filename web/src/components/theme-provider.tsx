@@ -20,21 +20,26 @@ const ThemeContext = createContext<{
 
 function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
+  document.documentElement.classList.toggle("light", theme === "light");
   document.documentElement.style.colorScheme = theme;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Always start "light" on SSR + first client paint to avoid hydration mismatch.
+  // SSR + first paint stay "light"; inline layout script applies stored theme before paint.
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
+    const fromDom = document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    const initial: Theme = stored === "dark" ? "dark" : "light";
-    if (stored !== "dark" && stored !== "light") {
-      window.localStorage.setItem(STORAGE_KEY, "light");
-    }
+    const initial: Theme =
+      stored === "dark" || stored === "light" ? stored : fromDom;
     setTheme(initial);
     applyTheme(initial);
+    if (stored !== "dark" && stored !== "light") {
+      window.localStorage.setItem(STORAGE_KEY, initial);
+    }
   }, []);
 
   const toggle = useCallback(() => {

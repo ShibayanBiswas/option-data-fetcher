@@ -2,6 +2,8 @@
 
 Historical NSE / BSE option-chain desk — browse, download CSV, and auto-sync to Turso.
 
+**Wind-up:** App is feature-complete for desk use — CSV exports, Turso-backed live dates, glass water UI, polished light **and** dark mode, quiet daily catch-up + weekday cron.
+
 ## Quick start (laptop)
 
 ```bash
@@ -31,21 +33,21 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
    npm run seed:turso:fast   # preferred: parallel copy from local SQLite
    # or: npm run seed:backfill   # re-download missing days from bhavcopy
    ```
-6. **Verify** — Browse, CSV Zip, Sync Today, cron job (`0 14 * * 1-5` ≈ 19:30 IST)
+6. **Verify** — Browse, CSV Zip, Sync Today, **dark mode toggle**, cron (`0 14 * * 1-5` ≈ 19:30 IST)
 
 > **Coverage:** NSE/BSE UDiFF F&O bhavcopy begins **2024-01-01**. Pre-2024 files use a different layout and are not ingested. Latest session appears after ~18:30 IST settlement. BSE stock options (`STO`) appear in bhavcopy from **~2024-06-27** onward; earlier BSE sessions are index-only.
 
 ## What you get
 
-- Left **file tree** (Index/Stock open by default; trade dates in main panel only) — cached + parallel prefetch for fast expand
-- Right panel scrolls **independently** from sidebar
-- **Compact folder tiles** — Index Options, Stock Options, symbols (title + status)
-- Trade dates & expiry files as **clean scroll lists**
-- Schema cards for UDiFF columns + stock sectors with **NSE | BSE** buttons
-- Horizontal **Scroll →** rails on Home + Schema
-- **CSV only** — leaf CSV or streaming **CSV Zip** (Excel removed)
-- ⌘K search · Sync Today · quiet daily catch-up on visit · weekday cron → **Turso**
-- Coverage KPIs, header “through …” date, and trade-date calendars update dynamically after sync
+- Left **file tree** (Index/Stock open by default; trade dates in main panel only)
+- Independent sidebar / main scroll with stable scrollbars
+- Compact folder tiles + clean trade-date / expiry lists
+- Glass **water-sheen** buttons and cards (hover only — no flicker loops)
+- Full **dark mode** (token surfaces, date pickers, maps, dialogs)
+- Schema rails + exchange map with NSE | BSE jumps
+- **CSV only** — leaf CSV or streaming CSV Zip
+- ⌘K search · Sync Today · quiet IST-day catch-up · weekday cron → **Turso**
+- Live End Date in header; KPIs and calendars soft-refresh after sync (no hard reload)
 
 ## Hierarchy
 
@@ -64,12 +66,13 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 
 | Area | Behaviour |
 |------|-----------|
-| Tree / browse APIs | Private cache 5 min + SWR 10 min |
-| Sidebar | Prefetches exchange/segment nodes; no trade-date flood |
-| CSV Zip | Server streams via archiver; browser native download |
-| Leaf download | Single CSV + cache headers |
-| Daily sync | Cron (~19:30 IST) + Sync Today + quiet catch-up on visit → Turso |
-| Live dates | Status polled / broadcast; calendars extend when End Date advances |
+| Tree / browse APIs | Short private cache + SWR |
+| Sidebar | Prefetches exchange/segment; no trade-date flood |
+| CSV Zip | Streaming archiver; browser native download |
+| Leaf download | Single CSV |
+| Daily sync | Cron (~19:30 IST) + Sync Today + quiet catch-up → Turso |
+| Live dates | Status fingerprinting; calendars extend when End Date advances |
+| Theme | `localStorage` + pre-paint script; light & dark |
 
 ## Scripts
 
@@ -78,7 +81,7 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 | `npm run dev` | Local UI |
 | `npm run seed N` | Last N sessions |
 | `npm run seed:all` | Full calendar from 2024-01-01 (skip existing) |
-| `npm run seed:backfill` | **Fill gaps** — all securities NSE+BSE to latest |
+| `npm run seed:backfill` | Fill gaps — all securities NSE+BSE to latest |
 | `npm run seed:turso:fast` | Wipe Turso + parallel copy from local SQLite |
 | `npm run check:turso` | Count docs / span on remote Turso |
 | `npm run seed:max` | Wipe → full INDEX + recent STOCK only |
@@ -87,6 +90,6 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 
 ## Manual sync
 
-- UI: **Sync Today** (same-origin; writes to configured DB — Turso in prod)
+- UI: **Sync Today** (same-origin; writes to Turso in prod)
 - API: `POST /api/sync`
 - Cron: `GET /api/cron/daily-sync` with `Authorization: Bearer $CRON_SECRET`

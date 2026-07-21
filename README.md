@@ -2,6 +2,8 @@
 
 Historical NSE / BSE option-chain desk — browse, download CSV, sync to Turso.
 
+**Status:** production-ready. Vercel (`web/` root) + Turso + weekday cron. CSV-only downloads, live End Date / calendars, light & dark desk UI.
+
 ## Quick start
 
 ```bash
@@ -14,33 +16,32 @@ npm run dev
 
 Open http://localhost:3000
 
-- **Browse** — file tree + panel; NSE | BSE picker at root; compact folder tiles
+- **Browse** — file tree + panel; NSE | BSE picker; compact folder tiles
 - **Schema** — horizontal card rails; exchange map
-- **Home** — KPI coverage, navigation map, capability/pipeline scroll rows
+- **Home** — live KPI coverage, navigation map, pipeline rows
 - **⌘K / Ctrl+K** — jump search
-- **Downloads** — CSV only (single leaf CSV or streaming CSV Zip)
-- **Sync Today** — latest bhavcopy session → Turso (prod) or local SQLite (dev)
-- **Auto catch-up** — opening the app quietly syncs once per IST day; KPIs / End Date / calendars refresh live
+- **Theme** — light / dark (persisted; no flash on reload)
+- **Downloads** — CSV only (leaf CSV or streaming CSV Zip)
+- **Sync** — Sync Today · quiet IST-day catch-up · weekday cron → Turso
 
 ## Docs
 
 | Doc | Audience |
 |-----|----------|
-| [`web/DEPLOY.md`](web/DEPLOY.md) | **Full Vercel deploy from scratch** — Turso, env vars, seed, cron, checklist |
-| [`web/README.md`](web/README.md) | App features, hierarchy, scripts |
+| [`web/DEPLOY.md`](web/DEPLOY.md) | **Full Vercel deploy** — Turso, env vars, seed, cron, checklist |
+| [`web/README.md`](web/README.md) | Features, hierarchy, scripts, live sync behaviour |
 
 ## Deploy on Vercel (summary)
 
-1. Import repo on Vercel — **Root Directory = `web`**
-2. Create Turso DB → set `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
-3. Set `CRON_SECRET`, `SYNC_SECRET` (Production + Preview)
-4. Deploy → seed Turso once from laptop (`npm run seed:turso:fast` or `seed:backfill`)
-5. Verify Browse, CSV Zip, Sync Today, cron
+1. Import repo — **Root Directory = `web`**
+2. Turso DB → `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
+3. `CRON_SECRET`, `SYNC_SECRET` (Production + Preview)
+4. Deploy → seed once (`npm run seed:turso:fast` or `seed:backfill`)
+5. Verify Browse, CSV Zip, Sync Today, dark mode, cron
 
-Weekday cron: **14:00 UTC (~19:30 IST)** → `/api/cron/daily-sync`  
-Writes directly into the same Turso DB used by the app (`LIBSQL_*`).
+Weekday cron: **14:00 UTC (~19:30 IST)** → `/api/cron/daily-sync` (writes Turso).
 
-**Full history:** UDiFF F&O bhavcopy starts **2024-01-01** on NSE and BSE. Use `seed:backfill` (or `seed:fresh`) so INDEX + STOCK + OTHER cover every published session through the latest settle.
+**History:** UDiFF F&O from **2024-01-01**. Use `seed:backfill` / `seed:turso:fast` for full INDEX + STOCK + OTHER coverage.
 
 ## Hierarchy
 

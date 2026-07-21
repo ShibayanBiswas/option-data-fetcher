@@ -59,7 +59,7 @@ export function DeskDialog({
           <X className="h-4 w-4" />
         </button>
         <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-gradient-to-br from-[var(--ar-maroon)] to-[var(--ar-gold)] p-2 text-white">
+          <div className="rounded-xl bg-gradient-to-br from-[#7a1e2c] to-[#b8860b] p-2 text-white">
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1 pr-6">

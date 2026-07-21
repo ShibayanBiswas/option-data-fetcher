@@ -112,9 +112,10 @@ Expect roughly: span **2024-01-01 → latest**, ~800k+ docs, NSE+BSE both popula
 | Check | Pass if |
 |-------|---------|
 | `/` | KPIs show start/end dates + counts |
-| `/browse` | NSE \| BSE works |
+| `/browse` | NSE \| BSE works; calendars include latest Turso date |
 | CSV Zip | Folder downloads as `.zip` of CSVs only (no Excel) |
-| **Sync Today** | synced / already_synced / missing — writes to Turso |
+| Dark mode | Toggle in header; surfaces / tables / date inputs stay readable |
+| **Sync Today** | synced / already_synced / missing — writes to Turso; UI soft-refreshes |
 | Cron curl | see below |
 
 ```bash
@@ -160,4 +161,15 @@ Local SQLite (full history)
         └── Cron 14:00 UTC + Sync Today  (daily updates → Turso)
 ```
 
-You are done when: Vercel build is green, KPIs show full span, Sync Today works, cron is scheduled.
+You are done when: Vercel build is green, KPIs show full span, Sync Today writes Turso, dark mode looks correct, cron is scheduled.
+
+---
+
+## Project wind-up checklist
+
+- [x] CSV-only downloads (Excel removed)
+- [x] Turso seed + weekday cron + Sync Today + quiet IST catch-up
+- [x] Live End Date / KPIs / calendars
+- [x] Glass water UI without continuous flicker
+- [x] Light + dark mode polished
+- [x] Docs: root `README.md`, `web/README.md`, `web/DEPLOY.md`
