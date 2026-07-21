@@ -32,15 +32,18 @@ systemctl --user start oca-archive oca-tunnel
 
 ## Daily sync (local)
 
+There is **one** DB (`data/option_chain.db`). Cloudflare Tunnel serves it — syncing local updates the public site automatically.
+
 ```bash
-cd web
-LIBSQL_URL=file:./data/option_chain.db npx tsx --env-file=.env.tunnel scripts/seed-backfill.ts
+bash deploy/install-daily-sync.sh
 ```
 
-Or cron (user crontab):
+Weekdays **19:30 IST** via `oca-daily-sync.timer` (+ crontab backup). Log: `data/sync.log`.
 
-```cron
-0 14 * * 1-5 cd /home/USER/Desktop/Option\ Data\ Fetcher/web && LIBSQL_URL=file:./data/option_chain.db /usr/bin/npx tsx --env-file=.env.tunnel scripts/seed-backfill.ts >> ~/.config/oca/logs/sync.log 2>&1
+Manual:
+
+```bash
+bash deploy/run-daily-sync.sh
 ```
 
 ## Env

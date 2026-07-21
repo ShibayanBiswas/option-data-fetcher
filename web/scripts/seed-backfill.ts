@@ -21,7 +21,7 @@ import {
   getArchiveStatus,
   getDbClient,
 } from "../src/lib/db";
-import { UDIFF_EPOCH } from "../src/lib/constants";
+import { ARCHIVE_EPOCH } from "../src/lib/constants";
 
 async function exchangeDays(exchange: "NSE" | "BSE"): Promise<Set<string>> {
   const days = await distinctValues("tradeDate", { exchange });
@@ -31,11 +31,11 @@ async function exchangeDays(exchange: "NSE" | "BSE"): Promise<Set<string>> {
 async function main() {
   const forceAll = process.argv.includes("--force-all");
 
-  console.log(`UDiFF epoch: ${UDIFF_EPOCH}`);
+  console.log(`UDiFF epoch: ${ARCHIVE_EPOCH}`);
   console.log("Fetching trading calendar (epoch → today)…");
   const dates = await fetchTradingDates();
   const cutoff = latestWeekday();
-  const ready = dates.filter((d) => d <= cutoff && d >= UDIFF_EPOCH);
+  const ready = dates.filter((d) => d <= cutoff && d >= ARCHIVE_EPOCH);
   console.log(`Ready sessions: ${ready.length} (${ready[0]} → ${ready.at(-1)})`);
   console.log(`Latest published cutoff (IST ~18:30): ${cutoff}`);
 
@@ -57,7 +57,7 @@ async function main() {
     )
     WHERE nifty=0 OR banknifty=0
   `,
-    args: [UDIFF_EPOCH],
+    args: [ARCHIVE_EPOCH],
   });
   const thinNseDays = new Set(
     thinNse.rows.map((r) => String((r as { trade_date: unknown }).trade_date))
@@ -75,7 +75,7 @@ async function main() {
     ) i ON i.d = s.trade_date
     WHERE i.d IS NULL
   `,
-    args: [UDIFF_EPOCH],
+    args: [ARCHIVE_EPOCH],
   });
   for (const r of nseStockNoIdx.rows) {
     thinNseDays.add(String((r as { trade_date: unknown }).trade_date));

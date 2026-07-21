@@ -1,6 +1,6 @@
 # Option Chain Archive
 
-Historical NSE / BSE option-chain desk — browse, download CSV, daily sync to **local SQLite**.
+Historical NSE / BSE option-chain desk — browse, download CSV, daily sync.
 
 ## Quick start (laptop)
 
@@ -8,25 +8,18 @@ Historical NSE / BSE option-chain desk — browse, download CSV, daily sync to *
 cd web
 npm install
 cp .env.example .env.local
-npm run seed 10
+# Keep SQLITE_URL=file:./data/option_chain.db for local desk
+npm run seed:backfill   # or npm run seed 10 for a smoke test
 npm run dev
 ```
 
-`SQLITE_URL=file:./data/option_chain.db` (default).
+## Deploy (Vercel + Turso)
 
-## Deploy
+Full guide: **[`DEPLOY.md`](./DEPLOY.md)** · Vercel env checklist: **[`VERCEL-ENV.md`](./VERCEL-ENV.md)**
 
-**Cloudflare Tunnel + local DB** — [`DEPLOY.md`](./DEPLOY.md) / [`DEPLOY-LOCAL-TUNNEL.md`](./DEPLOY-LOCAL-TUNNEL.md)
-
-```bash
-bash deploy/install-local-tunnel.sh
-```
-
-## What you get
-
-- File tree browse · CSV Zip · dark mode · ⌘K search
-- Sync Today + weekday `seed-backfill` into `data/option_chain.db`
-- Live End Date / KPI band from local `archive_stats`
+1. Turso DB loaded from local file (2025-01-01 → latest)  
+2. Put env vars from `.env.local` into Vercel (Root Directory = `web`)  
+3. Deploy — weekday cron `/api/cron/daily-sync` keeps Turso updated  
 
 ## Scripts
 
@@ -34,6 +27,8 @@ bash deploy/install-local-tunnel.sh
 |---------|---------|
 | `npm run dev` | Local UI |
 | `npm run seed:backfill` | Fill gaps from bhavcopy |
-| `npm run push:stats` | Refresh KPI cache row |
+| `npm run seed:turso:fast` | Copy local DB → Turso |
+| `npm run push:stats` | Refresh KPI cache (local compute → 1 Turso write) |
+| `npm run check:turso` | Coverage check |
 | `npm run audit:archive` | Integrity audit |
 | `npm run typecheck` | TypeScript check |

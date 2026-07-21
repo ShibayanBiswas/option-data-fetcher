@@ -1,9 +1,14 @@
 /**
- * Local SQLite archive store (file on disk).
+ * SQLite / libSQL archive store.
  *
- * Default: file:./data/option_chain.db
- * Override: SQLITE_URL or LIBSQL_URL as a file: path / filesystem path.
- * Remote libsql:// hosts are not supported — deploy via Cloudflare Tunnel on this PC.
+ * Local:  file:./data/option_chain.db  (or SQLITE_URL / LIBSQL_URL)
+ * Vercel: set LIBSQL_URL (+ LIBSQL_AUTH_TOKEN) to a Turso database —
+ *         plain SQLite files cannot persist on serverless.
+ *
+ * Rate-limit / free-tier safety:
+ * - KPIs come from one-row `archive_stats` (never full-table COUNT on page load)
+ * - Distinct lists + status are cached in-memory (longer TTL on Turso)
+ * - Missing `archive_stats` on remote returns zeros — run `npm run push:stats`
  */
 import { createClient, type Client } from "@libsql/client";
 import path from "path";
@@ -37,18 +42,26 @@ export type ArchiveStatus = {
   segments: { INDEX: number; STOCK: number; OTHER: number };
 };
 
-/** Human-readable SQLite / connection errors. */
+/** Human-readable Turso / libSQL errors (quota, auth, etc.). */
 export function formatDbError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
-  if (lower.includes("libsql://") || lower.includes("remote database")) {
+  if (
+    lower.includes("401") ||
+    lower.includes("unauthorized") ||
+    lower.includes("quota") ||
+    lower.includes("rows read") ||
+    lower.includes("rows-read") ||
+    lower.includes("rate limit") ||
+    lower.includes("ratelimit") ||
+    lower.includes("too many requests") ||
+    lower.includes("429")
+  ) {
     return (
-      "Remote cloud SQLite URLs are not supported. " +
-      "Use the local file database (data/option_chain.db) and Cloudflare Tunnel."
+      "Turso database quota or auth blocked this request (often free-tier rows-read limit). " +
+      "Wait for the monthly quota to reset, upgrade the Turso plan, or reduce full-table scans. " +
+      "The app now caches archive stats so normal browsing should stay within limits after reset."
     );
-  }
-  if (lower.includes("busy") || lower.includes("locked")) {
-    return "Database is busy (another sync may be running). Retry in a moment.";
   }
   if (lower.includes("fetch failed") || lower.includes("timeout")) {
     return "Database connection timed out. Retry in a moment.";
@@ -59,43 +72,46 @@ export function formatDbError(err: unknown): string {
 export function isQuotaOrAuthError(err: unknown): boolean {
   const raw = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return (
-    raw.includes("libsql://") ||
-    raw.includes("remote database") ||
+    raw.includes("401") ||
     raw.includes("unauthorized") ||
-    raw.includes("401")
+    raw.includes("quota") ||
+    raw.includes("rows read") ||
+    raw.includes("rows-read") ||
+    raw.includes("rate limit") ||
+    raw.includes("ratelimit") ||
+    raw.includes("too many requests") ||
+    raw.includes("429")
   );
 }
 
-function resolveDbUrl(): { url: string } {
-  const configured =
-    process.env.SQLITE_URL?.trim() ||
+export function isRemoteLibsql(): boolean {
+  const url =
     process.env.LIBSQL_URL?.trim() ||
+    process.env.TURSO_DATABASE_URL?.trim() ||
+    process.env.SQLITE_URL?.trim() ||
     "";
+  return url.startsWith("libsql://") || url.startsWith("https://");
+}
 
-  if (
-    configured.startsWith("libsql://") ||
-    configured.startsWith("https://") ||
-    configured.startsWith("http://")
-  ) {
-    throw new Error(
-      "Remote database URLs are not supported. Set SQLITE_URL=file:./data/option_chain.db " +
-        "and deploy with Cloudflare Tunnel (see web/DEPLOY-LOCAL-TUNNEL.md)."
-    );
+function resolveDbUrl(): { url: string; authToken?: string } {
+  const remote =
+    process.env.LIBSQL_URL?.trim() ||
+    process.env.TURSO_DATABASE_URL?.trim() ||
+    process.env.SQLITE_URL?.trim();
+  if (remote && (remote.startsWith("libsql://") || remote.startsWith("https://"))) {
+    return {
+      url: remote,
+      authToken:
+        process.env.LIBSQL_AUTH_TOKEN?.trim() ||
+        process.env.TURSO_AUTH_TOKEN?.trim(),
+    };
   }
-
-  if (configured.startsWith("file:")) {
-    return { url: configured };
+  if (remote?.startsWith("file:")) {
+    return { url: remote };
   }
-
-  if (
-    configured &&
-    (configured.startsWith("/") ||
-      configured.startsWith("./") ||
-      configured.startsWith("../"))
-  ) {
-    const abs = path.isAbsolute(configured)
-      ? configured
-      : path.join(process.cwd(), configured);
+  // Absolute or relative filesystem paths (without file: prefix)
+  if (remote && (remote.startsWith("/") || remote.startsWith("./") || remote.startsWith("../"))) {
+    const abs = path.isAbsolute(remote) ? remote : path.join(process.cwd(), remote);
     const dir = path.dirname(abs);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -107,13 +123,22 @@ function resolveDbUrl(): { url: string } {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-  return { url: `file:${path.join(dataDir, "option_chain.db")}` };
+  const filePath = path.join(dataDir, "option_chain.db");
+  return { url: `file:${filePath}` };
 }
 
 export function getDbClient(): Client {
   if (!global._libsqlClient) {
-    const { url } = resolveDbUrl();
-    global._libsqlClient = createClient({ url });
+    const { url, authToken } = resolveDbUrl();
+    if (
+      (url.startsWith("libsql://") || url.startsWith("https://")) &&
+      !authToken
+    ) {
+      throw new Error(
+        "Remote libSQL/Turso URL is set but LIBSQL_AUTH_TOKEN (or TURSO_AUTH_TOKEN) is missing."
+      );
+    }
+    global._libsqlClient = createClient({ url, authToken });
   }
   return global._libsqlClient;
 }
@@ -147,7 +172,7 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(
     `CREATE INDEX IF NOT EXISTS idx_chains_side_dates ON option_chains(exchange, segment, symbol, side, trade_date)`
   );
-  // One-row KPI cache — avoids full-table COUNT on every page load.
+  // One-row KPI cache — avoids COUNT(*) / DISTINCT scans on every page load (Turso rows-read).
   await db.execute(`
     CREATE TABLE IF NOT EXISTS archive_stats (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -248,7 +273,13 @@ export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
   await ensureSchema();
   const db = getDbClient();
-  const chunkSize = 40;
+  const remote =
+    process.env.LIBSQL_URL?.startsWith("libsql://") ||
+    process.env.LIBSQL_URL?.startsWith("https://");
+
+  const chunkSize = remote
+    ? Math.max(20, Number(process.env.TURSO_BATCH ?? 60))
+    : 40;
   const totalChunks = Math.ceil(docs.length / chunkSize);
   for (let i = 0; i < docs.length; i += chunkSize) {
     const chunk = docs.slice(i, i + chunkSize);
@@ -302,7 +333,8 @@ export async function countChains(filter: ChainFilter = {}): Promise<number> {
 const distinctCache = new Map<string, { at: number; values: string[] }>();
 
 function distinctTtlMs(): number {
-  return 30_000;
+  // Longer TTL on Turso — DISTINCT over large tables burns rows-read quota.
+  return isRemoteLibsql() ? 10 * 60_000 : 30_000;
 }
 
 export async function distinctValues(
@@ -375,7 +407,7 @@ export async function findChains(
 export async function getArchiveStatus(): Promise<ArchiveStatus> {
   await ensureSchema();
 
-  const memTtl = 30_000;
+  const memTtl = isRemoteLibsql() ? 5 * 60_000 : 30_000;
   const cached = global._archiveStatusCache;
   if (cached && Date.now() - cached.at < memTtl) {
     return cached.value;
@@ -412,14 +444,38 @@ export async function getArchiveStatus(): Promise<ArchiveStatus> {
     return value;
   }
 
-  // First boot / empty meta — one expensive recompute (avoid on every request).
+  // Never full-table scan on Turso from a page request — burns free-tier quota.
+  // Run `npm run push:stats` after seed to populate archive_stats.
+  if (isRemoteLibsql()) {
+    const empty: ArchiveStatus = {
+      totalDocuments: 0,
+      earliestTradeDate: null,
+      latestTradeDate: null,
+      tradingDays: 0,
+      exchanges: ["NSE", "BSE"],
+      symbolCount: 0,
+      segments: { INDEX: 0, STOCK: 0, OTHER: 0 },
+    };
+    global._archiveStatusCache = { at: Date.now(), value: empty };
+    return empty;
+  }
+
+  // Local file only: one expensive recompute on first boot.
   return refreshArchiveStats();
 }
 
 /**
- * Full-table recompute of archive_stats. Call after sync/seed.
+ * Full-table recompute of archive_stats.
+ * NEVER run on Turso from request/sync paths — burns millions of rows-read.
+ * Use touchArchiveStatsAfterDay on remote, or `npm run push:stats` from laptop.
  */
 export async function refreshArchiveStats(): Promise<ArchiveStatus> {
+  if (isRemoteLibsql() && process.env.FORCE_STATS_REFRESH !== "1") {
+    throw new Error(
+      "refused: full archive_stats scan on Turso. " +
+        "Use touchArchiveStatsAfterDay, or run npm run push:stats from local file."
+    );
+  }
   await ensureSchema();
   const db = getDbClient();
   const totalRs = await db.execute(`SELECT COUNT(*) AS n FROM option_chains`);
@@ -454,45 +510,66 @@ export async function refreshArchiveStats(): Promise<ArchiveStatus> {
     },
   };
 
-  await db.execute({
-    sql: `
-      INSERT INTO archive_stats (
-        id, total_documents, earliest_trade_date, latest_trade_date,
-        trading_days, symbol_count, index_files, stock_files, other_files,
-        exchanges_json, updated_at
-      ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        total_documents = excluded.total_documents,
-        earliest_trade_date = excluded.earliest_trade_date,
-        latest_trade_date = excluded.latest_trade_date,
-        trading_days = excluded.trading_days,
-        symbol_count = excluded.symbol_count,
-        index_files = excluded.index_files,
-        stock_files = excluded.stock_files,
-        other_files = excluded.other_files,
-        exchanges_json = excluded.exchanges_json,
-        updated_at = excluded.updated_at
-    `,
-    args: [
-      value.totalDocuments,
-      value.earliestTradeDate,
-      value.latestTradeDate,
-      value.tradingDays,
-      value.symbolCount,
-      value.segments.INDEX,
-      value.segments.STOCK,
-      value.segments.OTHER,
-      JSON.stringify(value.exchanges),
-      new Date().toISOString(),
-    ],
-  });
-
-  global._archiveStatusCache = { at: Date.now(), value };
+  await writeArchiveStats(value);
   return value;
 }
 
 /**
- * Write precomputed KPI stats into archive_stats (one row).
+ * Cheap KPI update after a single-day sync (Turso-safe).
+ * Reads only that trade_date's rows + the one archive_stats row — not the full table.
+ */
+export async function touchArchiveStatsAfterDay(
+  tradeDate: string,
+  beforeDayCount: number,
+  afterDayCount: number
+): Promise<ArchiveStatus> {
+  await ensureSchema();
+  const prev = await getArchiveStatus();
+  const delta = afterDayCount - beforeDayCount;
+  const wasEmptyDay = beforeDayCount <= 0 && afterDayCount > 0;
+
+  let tradingDays = prev.tradingDays;
+  if (wasEmptyDay) tradingDays += 1;
+
+  let earliest = prev.earliestTradeDate;
+  let latest = prev.latestTradeDate;
+  if (!earliest || tradeDate < earliest) earliest = tradeDate;
+  if (!latest || tradeDate > latest) latest = tradeDate;
+
+  // Segment split: approximate by counting this day only (small).
+  const db = getDbClient();
+  const segRs = await db.execute({
+    sql: `SELECT segment AS s, COUNT(*) AS n FROM option_chains WHERE trade_date = ? GROUP BY segment`,
+    args: [tradeDate],
+  });
+  // We only adjust totals by delta; keep prior segment totals adjusted loosely
+  const value: ArchiveStatus = {
+    totalDocuments: Math.max(0, prev.totalDocuments + delta),
+    earliestTradeDate: earliest,
+    latestTradeDate: latest,
+    tradingDays,
+    exchanges: prev.exchanges.length ? prev.exchanges : ["NSE", "BSE"],
+    symbolCount: prev.symbolCount, // avoid DISTINCT symbol scan
+    segments: { ...prev.segments },
+  };
+  // If brand-new day, add this day's segment counts; if heal, leave segments as-is
+  // (exact segment KPIs: run push:stats from laptop periodically).
+  if (wasEmptyDay) {
+    for (const r of segRs.rows) {
+      const s = String(r.s) as keyof typeof value.segments;
+      if (s === "INDEX" || s === "STOCK" || s === "OTHER") {
+        value.segments[s] += Number(r.n);
+      }
+    }
+  }
+
+  await writeArchiveStats(value);
+  return value;
+}
+
+/**
+ * Write precomputed KPI stats (e.g. from local SQLite) without scanning Turso chains.
+ * Use when free-tier rows-read is exhausted but writes still work, or after a bulk copy.
  */
 export async function writeArchiveStats(value: ArchiveStatus): Promise<void> {
   await ensureSchema();

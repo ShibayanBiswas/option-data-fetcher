@@ -44,6 +44,14 @@ export const SEGMENT_LABELS: Record<Segment, string> = {
  */
 export const UDIFF_EPOCH = "2024-01-01";
 
+/**
+ * Earliest trade_date this deployment keeps / backfills.
+ * Override with ARCHIVE_EPOCH (e.g. 2025-01-01 after trimming history).
+ */
+export const ARCHIVE_EPOCH =
+  (typeof process !== "undefined" && process.env.ARCHIVE_EPOCH?.trim()) ||
+  "2025-01-01";
+
 export const NSE_FO_URL =
   "https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{yyyymmdd}_F_0000.csv.zip";
 

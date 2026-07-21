@@ -136,6 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Quiet daily catch-up so End Date / calendars stay current.
+  // Turso-safe: only POST sync if KPI says we're behind latest weekday (1-row read via GET).
   useEffect(() => {
     const key = "oca:auto-sync-day";
     const day = istDayKey();
@@ -149,6 +150,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
+        const statusRes = await fetch("/api/sync", { credentials: "same-origin" });
+        const statusJson = (await statusRes.json().catch(() => ({}))) as {
+          latestTradeDate?: string | null;
+          quota?: boolean;
+        };
+        if (cancelled || statusRes.status === 503 || statusJson.quota) return;
+
+        // Avoid write-heavy sync when already current (saves Turso rows written).
+        const latest = statusJson.latestTradeDate;
+        if (latest && latest >= day) return;
+
         const res = await fetch("/api/sync", {
           method: "POST",
           credentials: "same-origin",

@@ -5,7 +5,7 @@ import {
   HTTP_HEADERS,
   NSE_FO_URL,
   PREFERRED_COLUMNS,
-  UDIFF_EPOCH,
+  ARCHIVE_EPOCH,
   classifySegment,
   sideFromOptnTp,
 } from "./constants";
@@ -18,7 +18,9 @@ import {
 import {
   countChains,
   ensureSchema,
+  isRemoteLibsql,
   refreshArchiveStats,
+  touchArchiveStatsAfterDay,
   upsertChainDocs,
 } from "./db";
 import type { Exchange, OptionChainDoc, OptionRow, Segment, SyncResult } from "./types";
@@ -313,10 +315,15 @@ export async function syncTradeDate(
     result.message = `Synced ${tradeDate}: ${result.saved.toLocaleString()} chain files stored in SQLite.`;
   }
 
-  // Refresh one-row KPI cache after writes (avoids COUNT(*) on every page load).
+  // KPI cache: never full-table scan on Turso (quota). Cheap day touch only.
   if (result.saved > 0 && process.env.SKIP_STATS_REFRESH !== "1") {
     try {
-      await refreshArchiveStats();
+      const afterCount = await countChains({ tradeDate });
+      if (isRemoteLibsql()) {
+        await touchArchiveStatsAfterDay(tradeDate, existingCount, afterCount);
+      } else {
+        await refreshArchiveStats();
+      }
     } catch (err) {
       console.warn(
         "archive_stats refresh skipped:",
@@ -329,7 +336,7 @@ export async function syncTradeDate(
 }
 
 /** Weekday ISO dates (Mon–Fri) as a calendar fallback when Yahoo is unreachable. */
-function weekdayFallback(fromIso = UDIFF_EPOCH): string[] {
+function weekdayFallback(fromIso = ARCHIVE_EPOCH): string[] {
   const out: string[] = [];
   const d = new Date(`${fromIso}T12:00:00Z`);
   const endUtc = new Date();
@@ -345,13 +352,11 @@ function weekdayFallback(fromIso = UDIFF_EPOCH): string[] {
 }
 
 /**
- * Trading sessions from UDiFF epoch (2024-01-01) through today.
+ * Trading sessions from ARCHIVE_EPOCH through today.
  * Prefer Yahoo ^NSEI; fall back to weekdays.
- * Optional `years` is ignored for start bound — history always begins at UDIFF_EPOCH
- * (kept for call-site compatibility).
  */
 export async function fetchTradingDates(): Promise<string[]> {
-  const start = new Date(`${UDIFF_EPOCH}T12:00:00Z`);
+  const start = new Date(`${ARCHIVE_EPOCH}T12:00:00Z`);
   const period1 = Math.floor(start.getTime() / 1000);
   const period2 = Math.floor(Date.now() / 1000) + 86_400;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5ENSEI?interval=1d&period1=${period1}&period2=${period2}`;
@@ -370,7 +375,7 @@ export async function fetchTradingDates(): Promise<string[]> {
     const timestamps: number[] = payload?.chart?.result?.[0]?.timestamp ?? [];
     const dates = timestamps
       .map((ts) => new Date(ts * 1000).toISOString().slice(0, 10))
-      .filter((iso) => iso >= UDIFF_EPOCH)
+      .filter((iso) => iso >= ARCHIVE_EPOCH)
       .sort();
     if (dates.length > 0) return dates;
   } catch (err) {
@@ -379,7 +384,7 @@ export async function fetchTradingDates(): Promise<string[]> {
       err instanceof Error ? err.message : err
     );
   }
-  return weekdayFallback(UDIFF_EPOCH);
+  return weekdayFallback(ARCHIVE_EPOCH);
 }
 
 export function latestWeekday(from = new Date()): string {
