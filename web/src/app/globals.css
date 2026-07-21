@@ -681,26 +681,6 @@ html.dark .brand-logo--dark {
   scrollbar-gutter: stable;
 }
 
-.kpi-band-card.sexy-card,
-.kpi-band-rail .kpi-band-card {
-  flex: 0 0 13.25rem;
-  width: 13.25rem;
-  min-width: 13.25rem;
-  max-width: 13.25rem;
-  scroll-snap-align: start;
-  box-sizing: border-box;
-  contain: none;
-  overflow: hidden;
-}
-
-.kpi-band-card:hover {
-  border-color: color-mix(in srgb, var(--ar-ink) 16%, transparent);
-}
-
-.kpi-band-card:hover::after {
-  animation: water-sheen 0.9s ease forwards;
-}
-
 .kpi-card {
   position: relative;
   isolation: isolate;
@@ -1111,24 +1091,70 @@ html.dark .archive-tree-icon {
   border: 1px solid color-mix(in srgb, var(--ar-gold) 35%, var(--ar-border));
 }
 
-.sexy-card-rail {
+.sexy-card-rail,
+.sexy-card-rail--top {
   position: absolute;
-  left: 1rem;
-  right: 1rem;
+  left: 0;
+  right: 0;
   top: 0;
   bottom: auto;
   width: auto;
   height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--ar-ink) 10%, transparent) 22%,
-    color-mix(in srgb, var(--ar-ink) 14%, transparent) 50%,
-    color-mix(in srgb, var(--ar-ink) 10%, transparent) 78%,
-    transparent 100%
-  );
-  opacity: 0.9;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ar-ink) 11%, transparent);
+  opacity: 1;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sexy-card-rail--bottom {
+  top: auto;
+  bottom: 0;
+  background: color-mix(in srgb, var(--ar-ink) 11%, transparent);
+}
+
+/* Coverage KPIs — clear top + bottom hairlines, even side borders */
+.kpi-band-card.sexy-card,
+.kpi-band-rail .kpi-band-card {
+  flex: 0 0 13.25rem;
+  width: 13.25rem;
+  min-width: 13.25rem;
+  max-width: 13.25rem;
+  scroll-snap-align: start;
+  box-sizing: border-box;
+  contain: none;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 10%, transparent);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--ar-surface) 98%, transparent);
+}
+
+.kpi-band-card .sexy-card-rail--top,
+.kpi-band-card .sexy-card-rail--bottom {
+  left: 0;
+  right: 0;
+  height: 1px;
+  opacity: 1;
+  background: color-mix(in srgb, var(--ar-ink) 14%, transparent);
+}
+
+html.dark .kpi-band-card.sexy-card {
+  border-color: color-mix(in srgb, var(--ar-ink) 14%, transparent);
+}
+
+html.dark .kpi-band-card .sexy-card-rail--top,
+html.dark .kpi-band-card .sexy-card-rail--bottom,
+html.dark .sexy-card-rail--top,
+html.dark .sexy-card-rail--bottom {
+  background: color-mix(in srgb, var(--ar-ink) 18%, transparent);
+}
+
+.kpi-band-card:hover {
+  border-color: color-mix(in srgb, var(--ar-ink) 18%, transparent);
+}
+
+.kpi-band-card:hover::after {
+  animation: water-sheen 0.9s ease forwards;
 }
 
 /* —— Desk flow maps —— */
@@ -1983,22 +2009,17 @@ html.dark .exchange-picker-badge.is-live {
 /* Soft top hairline — light, neutral (no brown/gold bars) */
 .h-scroll-card-rail {
   position: absolute;
-  left: 0.85rem;
-  right: 0.85rem;
+  left: 0;
+  right: 0;
   top: 0;
   bottom: auto;
   width: auto;
   height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--ar-ink) 10%, transparent) 22%,
-    color-mix(in srgb, var(--ar-ink) 14%, transparent) 50%,
-    color-mix(in srgb, var(--ar-ink) 10%, transparent) 78%,
-    transparent 100%
-  );
-  opacity: 0.9;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--ar-ink) 11%, transparent);
+  opacity: 1;
+  z-index: 2;
+  pointer-events: none;
 }
 
 /* —— Stylish desk card typography —— */
@@ -2270,16 +2291,17 @@ html.dark .flow-map-col {
   box-shadow: var(--ar-shadow);
 }
 
-html.dark .sexy-card-rail,
+html.dark .sexy-card-rail--top,
+html.dark .sexy-card-rail--bottom,
+html.dark .kpi-band-card .sexy-card-rail--top,
+html.dark .kpi-band-card .sexy-card-rail--bottom {
+  background: color-mix(in srgb, var(--ar-ink) 20%, transparent);
+  opacity: 1;
+}
+
 html.dark .h-scroll-card-rail {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--ar-ink) 14%, transparent) 22%,
-    color-mix(in srgb, var(--ar-ink) 20%, transparent) 50%,
-    color-mix(in srgb, var(--ar-ink) 14%, transparent) 78%,
-    transparent 100%
-  );
+  background: color-mix(in srgb, var(--ar-ink) 16%, transparent);
+  opacity: 1;
 }
 
 html.dark .btn-pill-active {

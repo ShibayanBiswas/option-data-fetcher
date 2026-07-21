@@ -10,6 +10,8 @@ type SexyCardProps = {
   href?: string;
   onClick?: () => void;
   delay?: number;
+  /** Optional bottom hairline (used by coverage KPIs). */
+  bottomRail?: boolean;
 };
 
 export function SexyCard({
@@ -17,10 +19,14 @@ export function SexyCard({
   className = "",
   href,
   onClick,
+  bottomRail = false,
 }: SexyCardProps) {
   const inner = (
     <div className={`sexy-card water-surface ${className}`} onClick={onClick}>
-      <div className="sexy-card-rail" aria-hidden />
+      <div className="sexy-card-rail sexy-card-rail--top" aria-hidden />
+      {bottomRail ? (
+        <div className="sexy-card-rail sexy-card-rail--bottom" aria-hidden />
+      ) : null}
       <div className="relative z-[1]">{children}</div>
     </div>
   );
@@ -44,7 +50,7 @@ export function SexyKpi({
   delay?: number;
 }) {
   return (
-    <SexyCard className="kpi-band-card !p-3.5">
+    <SexyCard className="kpi-band-card !py-3.5 !px-3.5" bottomRail>
       <div className="kpi-card-label">{label}</div>
       <div className="kpi-card-value" title={value}>
         {value}
