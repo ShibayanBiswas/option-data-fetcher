@@ -14,7 +14,6 @@ import type { BrowseChild, BrowseResponse } from "@/lib/types";
 import { DateRangeFilter } from "./date-range-filter";
 import { DownloadButtons } from "./download-buttons";
 import { ArchiveRootHero, ExchangePickerGrid } from "./exchange-picker";
-import { StaggerItem } from "./motion-primitives";
 import { SexyCard } from "./sexy-card";
 import { ARCHIVE_UPDATED_EVENT, type ArchiveStatusPayload } from "@/lib/archive-events";
 
@@ -173,9 +172,14 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
   const showHeaderDownload =
     (data.canDownloadBundle || data.canDownloadLeaf) && !data.table;
   const isRoot = data.level === "root";
+  const isDateListLevel = data.level === "side" || data.level === "tradeDate";
 
   return (
-    <div className="browse-pane space-y-4">
+    <div
+      className={
+        isDateListLevel ? "browse-pane browse-pane--dates" : "browse-pane space-y-4"
+      }
+    >
       <nav aria-label="Breadcrumb" className="path-crumbs">
         {data.breadcrumbs.map((crumb, i) => {
           const last = i === data.breadcrumbs.length - 1;
@@ -312,28 +316,30 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
       ) : visibleChildren.length > 0 &&
         (data.level === "side" || data.level === "tradeDate") ? (
         <div className="date-list glass overflow-hidden rounded-2xl">
-          <div className="border-b border-[var(--ar-border)] px-3 py-2 font-ui text-xs text-[var(--ar-muted)]">
+          <div className="date-list-header font-ui text-xs text-[var(--ar-muted)]">
             {data.level === "side"
               ? `${visibleChildren.length.toLocaleString()} sessions · oldest → newest`
               : `${visibleChildren.length.toLocaleString()} expiry files · strike ladders`}
           </div>
-          <div className="date-list-scroll">
-            {visibleChildren.map((child, index) => (
-              <StaggerItem key={child.id} index={index}>
-                <Link href={child.href} className="date-list-row no-underline">
-                  <span className="date-list-label">
-                    {data.level === "tradeDate" ? (
-                      <>
-                        <span className="date-list-kicker">Expiry</span> {child.label}
-                      </>
-                    ) : (
-                      child.label
-                    )}
-                  </span>
-                  <span className="date-list-meta">{child.meta}</span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ar-gold)] opacity-70" />
-                </Link>
-              </StaggerItem>
+          <div className="date-list-scroll scrollbar-thin">
+            {visibleChildren.map((child) => (
+              <Link
+                key={child.id}
+                href={child.href}
+                className="date-list-row no-underline"
+              >
+                <span className="date-list-label">
+                  {data.level === "tradeDate" ? (
+                    <>
+                      <span className="date-list-kicker">Expiry</span> {child.label}
+                    </>
+                  ) : (
+                    child.label
+                  )}
+                </span>
+                <span className="date-list-meta">{child.meta}</span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ar-gold)] opacity-70" />
+              </Link>
             ))}
           </div>
         </div>

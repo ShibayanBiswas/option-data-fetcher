@@ -865,6 +865,70 @@ html.dark .kpi-card-value {
   scrollbar-gutter: stable;
 }
 
+/* CALL/PUT trade-date lists: one dedicated scroll surface (no nested fight) */
+.archive-main-scroll:has(.browse-pane--dates) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0.55rem;
+}
+
+.browse-pane--dates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.browse-pane--dates > .path-crumbs,
+.browse-pane--dates > .sexy-card,
+.browse-pane--dates > .date-range-bar {
+  flex-shrink: 0;
+}
+
+.browse-pane--dates .date-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
+}
+
+.date-list-header {
+  flex-shrink: 0;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ar-ink) 8%, transparent);
+  background: color-mix(in srgb, var(--ar-panel) 88%, transparent);
+}
+
+.date-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.date-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ar-ink) 5%, transparent);
+  color: var(--ar-ink);
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.4rem;
+  transition: background 0.12s ease;
+}
+
 .archive-mobile-bar {
   display: flex;
   align-items: center;
@@ -1518,32 +1582,12 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
   filter: invert(0.85) sepia(0.35) saturate(2) hue-rotate(5deg);
 }
 
-.date-list-scroll {
-  scrollbar-gutter: stable;
-  max-height: min(58vh, calc(100dvh - 18rem));
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.date-list-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.45rem 0.85rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--ar-border) 80%, transparent);
-  color: var(--ar-ink);
-  font-family: var(--font-sans);
-  font-size: 0.84rem;
-  transition: background 0.12s ease;
-}
-
 .date-list-row:last-child {
   border-bottom: none;
 }
 
 .date-list-row:hover {
-  background: color-mix(in srgb, var(--ar-gold) 10%, transparent);
+  background: color-mix(in srgb, var(--ar-ink) 4%, transparent);
 }
 
 .date-list-label {
@@ -2200,14 +2244,6 @@ html.dark .exchange-picker-badge.is-live {
 
 .brand-nav-link:hover {
   box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--ar-gold) 35%, transparent);
-}
-
-.date-list-row {
-  transition: background 0.15s ease;
-}
-
-.date-list-row:hover {
-  background: color-mix(in srgb, var(--ar-gold) 8%, transparent);
 }
 
 .date-list-row:hover .date-list-label {
