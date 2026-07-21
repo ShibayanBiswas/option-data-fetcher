@@ -19,6 +19,7 @@ import {
   countChains,
   distinctValues,
   getArchiveStatus,
+  getDbClient,
 } from "../src/lib/db";
 import { UDIFF_EPOCH } from "../src/lib/constants";
 
@@ -41,12 +42,55 @@ async function main() {
   const nseDays = await exchangeDays("NSE");
   const bseDays = await exchangeDays("BSE");
 
+  // Sessions where NSE lacks INDEX majors (partial ingest) — force heal.
+  const db = getDbClient();
+  const thinNse = await db.execute({
+    sql: `
+    SELECT trade_date FROM (
+      SELECT trade_date,
+        MAX(CASE WHEN symbol='NIFTY' THEN 1 ELSE 0 END) AS nifty,
+        MAX(CASE WHEN symbol='BANKNIFTY' THEN 1 ELSE 0 END) AS banknifty
+      FROM option_chains
+      WHERE exchange='NSE' AND segment='INDEX'
+        AND trade_date >= ?
+      GROUP BY trade_date
+    )
+    WHERE nifty=0 OR banknifty=0
+  `,
+    args: [UDIFF_EPOCH],
+  });
+  const thinNseDays = new Set(
+    thinNse.rows.map((r) => String((r as { trade_date: unknown }).trade_date))
+  );
+  // Also: NSE STOCK day with zero INDEX docs
+  const nseStockNoIdx = await db.execute({
+    sql: `
+    SELECT s.trade_date FROM (
+      SELECT DISTINCT trade_date FROM option_chains
+      WHERE exchange='NSE' AND segment='STOCK' AND trade_date >= ?
+    ) s
+    LEFT JOIN (
+      SELECT DISTINCT trade_date AS d FROM option_chains
+      WHERE exchange='NSE' AND segment='INDEX'
+    ) i ON i.d = s.trade_date
+    WHERE i.d IS NULL
+  `,
+    args: [UDIFF_EPOCH],
+  });
+  for (const r of nseStockNoIdx.rows) {
+    thinNseDays.add(String((r as { trade_date: unknown }).trade_date));
+  }
+
   const todo: { date: string; force: boolean; reason: string }[] = [];
   for (const date of ready) {
     const hasNse = nseDays.has(date);
     const hasBse = bseDays.has(date);
     if (forceAll) {
       todo.push({ date, force: true, reason: "force-all" });
+      continue;
+    }
+    if (thinNseDays.has(date)) {
+      todo.push({ date, force: true, reason: "thin/partial NSE INDEX" });
       continue;
     }
     if (!hasNse && !hasBse) {

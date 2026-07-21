@@ -17,6 +17,9 @@
     "seed:turso:fast": "tsx --env-file=.env.local scripts/turso-from-local.ts",
     "seed:turso:local": "tsx --env-file=.env.local scripts/turso-from-local.ts",
     "check:turso": "tsx --env-file=.env.local scripts/check-turso.ts",
+    "audit:archive": "tsx --env-file=.env.local scripts/audit-archive.ts",
+    "audit:final": "tsx --env-file=.env.local scripts/audit-final.ts",
+    "compare:dbs": "tsx --env-file=.env.local scripts/compare-local-turso.ts",
     "reclassify": "tsx --env-file=.env.local scripts/reclassify-segments.ts",
     "audit:segments": "tsx --env-file=.env.local scripts/audit-segments.ts",
     "typecheck": "tsc --noEmit"

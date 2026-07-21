@@ -155,18 +155,47 @@ function whereClause(filter: ChainFilter): {
   };
 }
 
+async function withWriteRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  retries = 6
+): Promise<T> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      last = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const retryable =
+        /fetch failed|timeout|TEMP|busy|429|503|502|500|UND_ERR/i.test(msg) ||
+        (err as { cause?: { code?: string } })?.cause?.code?.includes("TIMEOUT");
+      if (!retryable || attempt === retries) break;
+      const wait = Math.min(30_000, 400 * 2 ** (attempt - 1));
+      console.warn(
+        `  [${label}] retry ${attempt}/${retries} in ${(wait / 1000).toFixed(1)}s — ${msg.slice(0, 120)}`
+      );
+      await new Promise((r) => setTimeout(r, wait));
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
+}
+
 export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
   await ensureSchema();
   const db = getDbClient();
-
-  const chunkSize =
+  const remote =
     process.env.LIBSQL_URL?.startsWith("libsql://") ||
-    process.env.LIBSQL_URL?.startsWith("https://")
-      ? 120
-      : 40;
+    process.env.LIBSQL_URL?.startsWith("https://");
+
+  const chunkSize = remote
+    ? Math.max(20, Number(process.env.TURSO_BATCH ?? 60))
+    : 40;
+  const totalChunks = Math.ceil(docs.length / chunkSize);
   for (let i = 0; i < docs.length; i += chunkSize) {
     const chunk = docs.slice(i, i + chunkSize);
+    const chunkNo = Math.floor(i / chunkSize) + 1;
     const statements = chunk.map((doc) => ({
       sql: `
         INSERT INTO option_chains (
@@ -194,7 +223,9 @@ export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
         ).toISOString(),
       ],
     }));
-    await db.batch(statements, "write");
+    await withWriteRetry(`upsert ${chunkNo}/${totalChunks}`, () =>
+      db.batch(statements, "write")
+    );
   }
   invalidateDistinctCache();
   return docs.length;

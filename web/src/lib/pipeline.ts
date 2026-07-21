@@ -249,10 +249,11 @@ export async function syncTradeDate(
             : await downloadBseRows(tradeDate);
         return { exchange, rows, error: null as string | null };
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
         return {
           exchange,
           rows: null as OptionRow[] | "missing" | null,
-          error: err instanceof Error ? err.message : String(err),
+          error: msg || "fetch failed",
         };
       }
     })
