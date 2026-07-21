@@ -166,7 +166,7 @@ export function BrowseExplorer({ initialPath = "" }: { initialPath?: string }) {
         <p className="mt-2 font-ui text-sm text-[var(--ar-muted)]">{message}</p>
         <p className="mt-4 font-ui text-xs text-[var(--ar-subtle)]">
           {quota
-            ? "Turso free-tier rows-read limit is full — the whole account is blocked until the quota resets or you upgrade. After reset, this app uses a cached stats row so KPI loads no longer scan ~800k chain files."
+            ? "The archive database could not be opened. Confirm data/option_chain.db exists and the Cloudflare Tunnel services are running (oca-local)."
             : "If this is a fresh deploy, use Sync Today to pull the latest bhavcopy into the archive."}
         </p>
       </div>

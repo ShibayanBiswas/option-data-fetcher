@@ -1,47 +1,38 @@
 # Option Chain Archive
 
-Historical NSE / BSE option-chain desk — browse, download CSV, daily sync.
+Historical NSE / BSE option-chain desk — browse, CSV download, daily bhavcopy sync.
 
-**Recommended production:** **VPS + on-disk SQLite** (~8.3 GB file). Vercel cannot host that database; Turso free-tier is a poor fit for this size.
+**Production:** this PC + **local SQLite** (`data/option_chain.db`) + **Cloudflare Tunnel**.
 
-## Quick start (laptop)
+## Quick start
 
 ```bash
 cd web
 npm install
-npm run seed:backfill   # full UDiFF history (2024-01-01 → latest)
+cp .env.example .env.local
+npm run seed:backfill   # or: npm run seed 10
 npm run dev
 ```
 
-Open http://localhost:3000
+## Deploy (Cloudflare Tunnel)
 
-## Docs
+```bash
+cd web
+bash deploy/install-local-tunnel.sh
+journalctl --user -u cloudflared-oca -n 40 --no-pager | grep trycloudflare
+```
 
-| Doc | Use when |
-|-----|----------|
-| [`web/DEPLOY-VPS.md`](web/DEPLOY-VPS.md) | **Production redeploy (recommended)** — Ubuntu 24.04, Node 22, SQLite file, cron |
-| [`web/DEPLOY.md`](web/DEPLOY.md) | Legacy Vercel + Turso only (needs paid Turso; not for 8 GB free-tier) |
-| [`web/README.md`](web/README.md) | Features, hierarchy, scripts |
+Guide: [`web/DEPLOY.md`](web/DEPLOY.md) · [`web/DEPLOY-LOCAL-TUNNEL.md`](web/DEPLOY-LOCAL-TUNNEL.md)
 
-## Production (summary)
-
-1. Create Ubuntu **24.04** VPS (4 GB RAM, **40 GB+** disk)
-2. Install **Node 22.14**
-3. `rsync` your local `web/data/option_chain.db` once
-4. Set `LIBSQL_URL=file:…` (no Turso)
-5. `npm run build` + systemd (or Docker Compose)
-6. Weekday cron: `seed-backfill` at **14:00 UTC**
-7. Point DNS at the VPS; pause Vercel / Turso
-
-Pinned versions and full steps: **[`web/DEPLOY-VPS.md`](web/DEPLOY-VPS.md)**.
+Daily sync: weekday cron `seed-backfill` + Sync Today → updates the **same local DB**.
 
 ## Hierarchy
 
 ```
 NSE | BSE
  └── Index Options | Stock Options | Other Securities
-      └── Symbol (stocks under sector folders)
+      └── Symbol
            └── CALL | PUT
-                └── Trade date (oldest → newest; calendar filter)
+                └── Trade date
                      └── expiry_date_YYYY-MM-DD
 ```

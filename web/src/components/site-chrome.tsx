@@ -71,7 +71,7 @@ export function SiteHeader({
       <div className="brand-subheader">
         <Database className="h-3.5 w-3.5 text-[var(--ar-gold)]" />
         <span>
-          NSE · BSE · Turso weekday sync
+          NSE · BSE · weekday sync
           {latestTradeDate ? (
             <>
               {" "}
@@ -88,7 +88,7 @@ export function SiteFooter() {
   return (
     <footer className="desk-footer shrink-0 border-t border-[var(--ar-border)] py-1">
       <div className="mx-auto flex max-w-full items-center justify-center px-3 font-ui text-[11px] text-[var(--ar-subtle)] lg:px-4">
-        <span>Option Chain Archive · live End Date from Turso / SQLite</span>
+        <span>Option Chain Archive · live End Date from local SQLite</span>
       </div>
     </footer>
   );

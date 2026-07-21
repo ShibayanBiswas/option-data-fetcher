@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Live status: load once; refresh only on archive-updated events (no poll — saves Turso rows-read).
+  // Live status: load once; refresh on archive-updated events.
   useEffect(() => {
     let cancelled = false;
     let lastFp = "";
@@ -135,7 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Quiet daily catch-up → Turso/local so End Date / calendars stay current.
+  // Quiet daily catch-up so End Date / calendars stay current.
   useEffect(() => {
     const key = "oca:auto-sync-day";
     const day = istDayKey();
@@ -162,7 +162,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           error?: string;
         };
         if (cancelled) return;
-        // Don't hammer Turso when quota/auth is blocking the account.
         if (res.status === 503 || json.quota) return;
         const wrote =
           json.status === "synced" || json.status === "partial";

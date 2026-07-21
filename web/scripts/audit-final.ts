@@ -1,5 +1,5 @@
 /**
- * Final post-repair verification report (Turso / local).
+ * Final post-repair verification report (local SQLite).
  */
 import { closeDb, ensureSchema, getArchiveStatus, getDbClient } from "../src/lib/db";
 
@@ -145,7 +145,7 @@ async function main() {
 
   console.log("\n═══════════════════════════════════════════════════");
   if (issues.length === 0) {
-    console.log("VERDICT: PASS — Turso archive integrity OK for", `${LO}→${HI}`);
+    console.log("VERDICT: PASS — archive integrity OK for", `${LO}→${HI}`);
   } else {
     console.log("VERDICT: ISSUES");
     for (const i of issues) console.log(" ·", i);

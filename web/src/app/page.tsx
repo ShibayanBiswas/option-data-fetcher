@@ -58,7 +58,7 @@ const features = [
     kicker: "03 · Storage",
     title: "SQLite archive",
     accent: "sync",
-    body: "Local SQLite in development · Turso (libSQL) on Vercel — same SQL, sync-ready.",
+    body: "Local SQLite on this PC · Cloudflare Tunnel for public access.",
     href: "/schema",
   },
   {
@@ -107,7 +107,7 @@ const PIPELINE_STEPS = [
     kicker: "Serve",
     title: "Persist",
     accent: "& expose",
-    body: "Lean chains in SQLite / Turso, full CSVs locally, then browse and download APIs.",
+    body: "Lean chains in SQLite, full CSVs under data/store, then browse and download APIs.",
   },
 ];
 
@@ -348,7 +348,7 @@ function HomeBody() {
         <HScrollSection
           eyebrow="Pipeline"
           title="How the desk builds the book"
-          subtitle="Daily F&O UDiFF bhavcopy → segregate → SQLite / Turso → browse & download."
+          subtitle="Daily F&O UDiFF bhavcopy → segregate → local SQLite → browse & download."
           cardSize="lg"
         >
           {PIPELINE_STEPS.map((step, i) => (

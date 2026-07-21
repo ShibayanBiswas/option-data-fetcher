@@ -1,6 +1,6 @@
 # Run on this PC + Cloudflare Tunnel
 
-Expose the local `option_chain.db` (~8.3 GB) via Cloudflare without uploading it or using Turso/Vercel.
+Expose the local `option_chain.db` (~8.3 GB) via Cloudflare Tunnel.
 
 ## Install / restart
 

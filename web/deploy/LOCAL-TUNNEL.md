@@ -1,6 +1,5 @@
 # Local PC + Cloudflare Tunnel
 
-Run the Option Chain Archive on **this machine** with the existing `data/option_chain.db` (~8.3 GB). Expose it via Cloudflare’s free **quick tunnel** (`*.trycloudflare.com`) — no VPS, no Turso, no open router ports.
 
 ## Limits
 
@@ -35,7 +34,6 @@ systemctl --user start oca-archive oca-tunnel
 
 ```bash
 cd web
-# Use file DB, not Turso:
 LIBSQL_URL=file:./data/option_chain.db npx tsx --env-file=.env.tunnel scripts/seed-backfill.ts
 ```
 
@@ -47,4 +45,3 @@ Or cron (user crontab):
 
 ## Env
 
-`.env.tunnel` (gitignored) points at `file:./data/option_chain.db`. Do **not** put Turso URLs there.

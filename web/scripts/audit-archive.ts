@@ -1,5 +1,5 @@
 /**
- * Thorough archive integrity audit (Turso or local via LIBSQL_*).
+ * Thorough archive integrity audit (local SQLite via SQLITE_URL).
  *
  *   npm run audit:archive
  *
@@ -80,7 +80,7 @@ async function main() {
 
   // —— 2. Duplicates (PK violations / logical dupes) ——
   // Table PRIMARY KEY enforces uniqueness — a full remote GROUP BY on 800k+
-  // rows is too expensive on Turso; treat schema PK as the guarantee.
+  // rows is unnecessary with PK; treat schema PK as the guarantee.
   console.log("\n—— Duplicate / integrity checks ——");
   console.log("✓ PRIMARY KEY uniqueness enforced by schema (no duplicate key rows possible)");
 

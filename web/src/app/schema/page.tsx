@@ -98,7 +98,7 @@ const PIPE_CARDS = [
   {
     n: "03",
     title: "Persist",
-    body: "Local CSV + SQLite / Turso",
+    body: "Local CSV + SQLite",
     icon: Database,
   },
   {

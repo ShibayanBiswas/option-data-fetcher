@@ -1,9 +1,9 @@
 /**
- * SQLite / libSQL archive store.
+ * Local SQLite archive store (file on disk).
  *
- * Local:  file:./data/option_chain.db  (or SQLITE_URL / LIBSQL_URL)
- * Vercel: set LIBSQL_URL (+ LIBSQL_AUTH_TOKEN) to a Turso database —
- *         plain SQLite files cannot persist on serverless.
+ * Default: file:./data/option_chain.db
+ * Override: SQLITE_URL or LIBSQL_URL as a file: path / filesystem path.
+ * Remote libsql:// hosts are not supported — deploy via Cloudflare Tunnel on this PC.
  */
 import { createClient, type Client } from "@libsql/client";
 import path from "path";
@@ -37,28 +37,18 @@ export type ArchiveStatus = {
   segments: { INDEX: number; STOCK: number; OTHER: number };
 };
 
-function isRemoteLibsql(): boolean {
-  const url = process.env.LIBSQL_URL?.trim() || "";
-  return url.startsWith("libsql://") || url.startsWith("https://");
-}
-
-/** Human-readable Turso / libSQL errors (quota, auth, etc.). */
+/** Human-readable SQLite / connection errors. */
 export function formatDbError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   const lower = raw.toLowerCase();
-  if (
-    lower.includes("401") ||
-    lower.includes("unauthorized") ||
-    lower.includes("quota") ||
-    lower.includes("rows read") ||
-    lower.includes("rate limit") ||
-    lower.includes("429")
-  ) {
+  if (lower.includes("libsql://") || lower.includes("remote database")) {
     return (
-      "Turso database quota or auth blocked this request (often free-tier rows-read limit). " +
-      "Wait for the monthly quota to reset, upgrade the Turso plan, or reduce full-table scans. " +
-      "The app now caches archive stats so normal browsing should stay within limits after reset."
+      "Remote cloud SQLite URLs are not supported. " +
+      "Use the local file database (data/option_chain.db) and Cloudflare Tunnel."
     );
+  }
+  if (lower.includes("busy") || lower.includes("locked")) {
+    return "Database is busy (another sync may be running). Retry in a moment.";
   }
   if (lower.includes("fetch failed") || lower.includes("timeout")) {
     return "Database connection timed out. Retry in a moment.";
@@ -69,33 +59,43 @@ export function formatDbError(err: unknown): string {
 export function isQuotaOrAuthError(err: unknown): boolean {
   const raw = (err instanceof Error ? err.message : String(err)).toLowerCase();
   return (
-    raw.includes("401") ||
+    raw.includes("libsql://") ||
+    raw.includes("remote database") ||
     raw.includes("unauthorized") ||
-    raw.includes("quota") ||
-    raw.includes("rows read") ||
-    raw.includes("429")
+    raw.includes("401")
   );
 }
 
-function resolveDbUrl(): { url: string; authToken?: string } {
-  const remote =
+function resolveDbUrl(): { url: string } {
+  const configured =
+    process.env.SQLITE_URL?.trim() ||
     process.env.LIBSQL_URL?.trim() ||
-    process.env.TURSO_DATABASE_URL?.trim() ||
-    process.env.SQLITE_URL?.trim();
-  if (remote && (remote.startsWith("libsql://") || remote.startsWith("https://"))) {
-    return {
-      url: remote,
-      authToken:
-        process.env.LIBSQL_AUTH_TOKEN?.trim() ||
-        process.env.TURSO_AUTH_TOKEN?.trim(),
-    };
+    "";
+
+  if (
+    configured.startsWith("libsql://") ||
+    configured.startsWith("https://") ||
+    configured.startsWith("http://")
+  ) {
+    throw new Error(
+      "Remote database URLs are not supported. Set SQLITE_URL=file:./data/option_chain.db " +
+        "and deploy with Cloudflare Tunnel (see web/DEPLOY-LOCAL-TUNNEL.md)."
+    );
   }
-  if (remote?.startsWith("file:")) {
-    return { url: remote };
+
+  if (configured.startsWith("file:")) {
+    return { url: configured };
   }
-  // Absolute or relative filesystem paths (without file: prefix)
-  if (remote && (remote.startsWith("/") || remote.startsWith("./") || remote.startsWith("../"))) {
-    const abs = path.isAbsolute(remote) ? remote : path.join(process.cwd(), remote);
+
+  if (
+    configured &&
+    (configured.startsWith("/") ||
+      configured.startsWith("./") ||
+      configured.startsWith("../"))
+  ) {
+    const abs = path.isAbsolute(configured)
+      ? configured
+      : path.join(process.cwd(), configured);
     const dir = path.dirname(abs);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -107,22 +107,13 @@ function resolveDbUrl(): { url: string; authToken?: string } {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-  const filePath = path.join(dataDir, "option_chain.db");
-  return { url: `file:${filePath}` };
+  return { url: `file:${path.join(dataDir, "option_chain.db")}` };
 }
 
 export function getDbClient(): Client {
   if (!global._libsqlClient) {
-    const { url, authToken } = resolveDbUrl();
-    if (
-      (url.startsWith("libsql://") || url.startsWith("https://")) &&
-      !authToken
-    ) {
-      throw new Error(
-        "Remote libSQL/Turso URL is set but LIBSQL_AUTH_TOKEN (or TURSO_AUTH_TOKEN) is missing."
-      );
-    }
-    global._libsqlClient = createClient({ url, authToken });
+    const { url } = resolveDbUrl();
+    global._libsqlClient = createClient({ url });
   }
   return global._libsqlClient;
 }
@@ -156,7 +147,7 @@ export async function ensureSchema(): Promise<void> {
   await db.execute(
     `CREATE INDEX IF NOT EXISTS idx_chains_side_dates ON option_chains(exchange, segment, symbol, side, trade_date)`
   );
-  // One-row KPI cache — avoids COUNT(*) / DISTINCT scans on every page load (Turso rows-read).
+  // One-row KPI cache — avoids full-table COUNT on every page load.
   await db.execute(`
     CREATE TABLE IF NOT EXISTS archive_stats (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -257,13 +248,7 @@ export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
   await ensureSchema();
   const db = getDbClient();
-  const remote =
-    process.env.LIBSQL_URL?.startsWith("libsql://") ||
-    process.env.LIBSQL_URL?.startsWith("https://");
-
-  const chunkSize = remote
-    ? Math.max(20, Number(process.env.TURSO_BATCH ?? 60))
-    : 40;
+  const chunkSize = 40;
   const totalChunks = Math.ceil(docs.length / chunkSize);
   for (let i = 0; i < docs.length; i += chunkSize) {
     const chunk = docs.slice(i, i + chunkSize);
@@ -317,8 +302,7 @@ export async function countChains(filter: ChainFilter = {}): Promise<number> {
 const distinctCache = new Map<string, { at: number; values: string[] }>();
 
 function distinctTtlMs(): number {
-  // Longer TTL on Turso — DISTINCT over large tables burns rows-read quota.
-  return isRemoteLibsql() ? 10 * 60_000 : 30_000;
+  return 30_000;
 }
 
 export async function distinctValues(
@@ -391,7 +375,7 @@ export async function findChains(
 export async function getArchiveStatus(): Promise<ArchiveStatus> {
   await ensureSchema();
 
-  const memTtl = isRemoteLibsql() ? 5 * 60_000 : 30_000;
+  const memTtl = 30_000;
   const cached = global._archiveStatusCache;
   if (cached && Date.now() - cached.at < memTtl) {
     return cached.value;
@@ -433,7 +417,7 @@ export async function getArchiveStatus(): Promise<ArchiveStatus> {
 }
 
 /**
- * Full-table recompute of archive_stats. Expensive on Turso — call after sync/seed only.
+ * Full-table recompute of archive_stats. Call after sync/seed.
  */
 export async function refreshArchiveStats(): Promise<ArchiveStatus> {
   await ensureSchema();
@@ -508,8 +492,7 @@ export async function refreshArchiveStats(): Promise<ArchiveStatus> {
 }
 
 /**
- * Write precomputed KPI stats (e.g. from local SQLite) without scanning Turso chains.
- * Use when free-tier rows-read is exhausted but writes still work, or after a bulk copy.
+ * Write precomputed KPI stats into archive_stats (one row).
  */
 export async function writeArchiveStats(value: ArchiveStatus): Promise<void> {
   await ensureSchema();

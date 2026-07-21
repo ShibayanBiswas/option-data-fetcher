@@ -157,20 +157,14 @@ export async function upsertDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
   await ensureSchema();
 
-  // Local CSV store is for laptop browsing only. Skip on Turso/remote seeds —
-  // writing hundreds of thousands of files per day makes cloud seeding unusable.
-  const remote =
-    process.env.LIBSQL_URL?.startsWith("libsql://") ||
-    process.env.LIBSQL_URL?.startsWith("https://") ||
-    process.env.SKIP_LOCAL_STORE === "1";
-
-  if (!remote) {
+  // Optional CSV mirror under data/store. Skip when SKIP_LOCAL_STORE=1.
+  if (process.env.SKIP_LOCAL_STORE !== "1") {
     await Promise.all(
       docs.map(async (doc) => {
         try {
           await writeLocalChain(doc);
         } catch {
-          /* ephemeral hosts may not allow local writes */
+          /* ignore store write errors */
         }
       })
     );

@@ -1,55 +1,60 @@
-# Deploy on Vercel (legacy — not recommended for this archive)
+# Deploy: this PC + Cloudflare Tunnel + local SQLite
 
-> **Prefer [`DEPLOY-VPS.md`](./DEPLOY-VPS.md).**  
-> The SQLite archive is **~8.3 GB**. Vercel has **no durable disk** for that file. Turso free-tier **rows-read** will block an archive this size (HTTP 401 / “Unable to load”).
+**This is the only supported production path.**  
+Database = `web/data/option_chain.db` on this machine.  
+Public access = Cloudflare Tunnel (`*.trycloudflare.com` or a named tunnel).
 
----
-
-## What Vercel can / cannot do
-
-| Goal | Possible? |
-|------|-----------|
-| Host Next.js UI + API routes | Yes |
-| Store `web/data/option_chain.db` (8 GB) | **No** |
-| Use Turso as the database | Yes — **paid plan** strongly recommended |
-| Free-tier Turso + full history | **No** (quota exhaustion) |
+There is **no remote cloud SQLite** and **no Vercel database** — only the file on this PC.
 
 ---
 
-## If you still deploy UI on Vercel + paid Turso
-
-1. https://vercel.com/new → Import `option-data-fetcher`
-2. **Root Directory** = `web`
-3. Environment variables (Production + Preview):
-
-| Name | Value |
-|------|--------|
-| `LIBSQL_URL` | Turso `libsql://…` |
-| `LIBSQL_AUTH_TOKEN` | Turso token |
-| `CRON_SECRET` | `openssl rand -hex 32` |
-| `SYNC_SECRET` | different `openssl rand -hex 32` |
-
-4. Deploy
-5. From laptop (same Turso creds in `.env.local`):
+## One-time setup
 
 ```bash
 cd web
-npm run seed:turso:fast
-npm run push:stats
+cp .env.example .env.local
+# Ensure SQLITE_URL=file:./data/option_chain.db  (no remote URLs)
+
+bash deploy/install-local-tunnel.sh
 ```
 
-6. Cron: **Settings → Cron Jobs** → `0 14 * * 1-5` → `/api/cron/daily-sync`
-7. Keep Turso above free rows-read limits
+Services:
+- `oca-local` — Next.js on `127.0.0.1:3000`
+- `cloudflared-oca` — Cloudflare quick tunnel
+
+Public URL:
+
+```bash
+journalctl --user -u cloudflared-oca -n 80 --no-pager | grep trycloudflare
+```
 
 ---
 
-## Recommended instead
+## Daily sync (bhavcopy → local DB)
 
-Follow **[`DEPLOY-VPS.md`](./DEPLOY-VPS.md)**:
+Already installed with the tunnel setup, or:
 
-1. Ubuntu 24.04 VPS + Node 22.14  
-2. `rsync` the local DB once  
-3. `LIBSQL_URL=file:…` (no Turso)  
-4. systemd or Docker + Nginx  
-5. Weekday `seed-backfill` cron  
-6. Point DNS to the VPS; pause Vercel / Turso  
+```cron
+0 14 * * 1-5 cd "$HOME/Desktop/Option Data Fetcher/web" && SQLITE_URL=file:./data/option_chain.db npx tsx --env-file=.env.local scripts/seed-backfill.ts >> data/sync.log 2>&1
+```
+
+≈ **19:30 IST** weekdays. Also: **Sync Today** in the UI.
+
+---
+
+## Commands
+
+```bash
+systemctl --user status oca-local cloudflared-oca
+systemctl --user restart oca-local cloudflared-oca
+systemctl --user stop cloudflared-oca
+npm run push:stats    # refresh KPI cache row
+```
+
+---
+
+## Notes
+
+- Keep this PC awake — sleep takes the site offline.
+- Quick-tunnel hostnames change when `cloudflared-oca` restarts; use a named Cloudflare tunnel for a stable domain (`deploy/setup-named-tunnel.sh`).
+- Full detail: [`DEPLOY-LOCAL-TUNNEL.md`](./DEPLOY-LOCAL-TUNNEL.md)

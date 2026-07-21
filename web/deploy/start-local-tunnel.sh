@@ -12,7 +12,7 @@ if [[ ! -f "${DB}" ]]; then
   exit 1
 fi
 
-# Force local file DB — ignore any Turso vars from the shell
+# Force local file DB — force local file DB
 unset LIBSQL_AUTH_TOKEN TURSO_AUTH_TOKEN TURSO_DATABASE_URL || true
 export LIBSQL_URL="file:${DB}"
 export NODE_ENV=production
