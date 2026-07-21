@@ -21,6 +21,7 @@ import {
   isRemoteLibsql,
   refreshArchiveStats,
   touchArchiveStatsAfterDay,
+  upsertCatalogSymbols,
   upsertChainDocs,
 } from "./db";
 import type { Exchange, OptionChainDoc, OptionRow, Segment, SyncResult } from "./types";
@@ -283,6 +284,14 @@ export async function syncTradeDate(
     try {
       const saved = await upsertDocs(docs);
       result.saved += saved;
+      // Tiny catalog writes so STOCK browse never needs a full DISTINCT scan.
+      await upsertCatalogSymbols(
+        docs.map((d) => ({
+          exchange: d.exchange,
+          segment: d.segment,
+          symbol: d.symbol,
+        }))
+      );
     } catch (err) {
       result.failed += 1;
       result.errors.push(

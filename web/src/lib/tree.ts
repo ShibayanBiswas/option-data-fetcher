@@ -1,6 +1,6 @@
 import { distinctValues } from "./db";
 import { hrefForPath, pathFromSegments } from "./storage";
-import { SEGMENT_LABELS, SEGMENT_ORDER } from "./constants";
+import { SEGMENT_LABELS } from "./constants";
 import { groupSymbolsBySector, SECTORS, sectorForSymbol } from "./sectors";
 import type { Exchange, Segment } from "./types";
 
@@ -47,19 +47,15 @@ export async function getTreeChildren(
   }
 
   if (!path.segment) {
-    const present = new Set(
-      (await distinctValues("segment", { exchange: path.exchange })) as Segment[]
-    );
-    return SEGMENT_ORDER.filter((seg) => seg !== "OTHER" || present.has(seg)).map(
-      (seg) => ({
-        id: `${path.exchange}-${seg}`,
-        label: SEGMENT_LABELS[seg],
-        href: hrefForPath({ exchange: path.exchange, segment: seg }),
-        treePath: `${path.exchange}/${seg}`,
-        kind: "segment" as const,
-        hasChildren: present.has(seg),
-      })
-    );
+    // Hardcoded — avoids DISTINCT segment scan (Turso quota).
+    return (["INDEX", "STOCK"] as Segment[]).map((seg) => ({
+      id: `${path.exchange}-${seg}`,
+      label: SEGMENT_LABELS[seg],
+      href: hrefForPath({ exchange: path.exchange, segment: seg }),
+      treePath: `${path.exchange}/${seg}`,
+      kind: "segment" as const,
+      hasChildren: true,
+    }));
   }
 
   if (!path.symbol) {

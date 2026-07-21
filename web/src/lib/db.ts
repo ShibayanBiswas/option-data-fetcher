@@ -14,6 +14,7 @@ import { createClient, type Client } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 import type { OptionChainDoc, OptionRow } from "./types";
+import { BSE_INDEX_SYMBOLS, NSE_INDEX_SYMBOLS } from "./constants";
 
 export type ChainFilter = {
   exchange?: string;
@@ -209,6 +210,18 @@ export async function ensureSchema(): Promise<void> {
       updated_at TEXT NOT NULL
     )
   `);
+  // Compact symbol directory — browse STOCK without DISTINCT over hundreds of thousands of rows.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS archive_catalog (
+      exchange TEXT NOT NULL,
+      segment TEXT NOT NULL,
+      symbol TEXT NOT NULL,
+      PRIMARY KEY (exchange, segment, symbol)
+    )
+  `);
+  await db.execute(
+    `CREATE INDEX IF NOT EXISTS idx_catalog_ex_seg ON archive_catalog(exchange, segment)`
+  );
   global._libsqlSchemaReady = true;
 }
 
@@ -354,8 +367,81 @@ export async function countChains(filter: ChainFilter = {}): Promise<number> {
 const distinctCache = new Map<string, { at: number; values: string[] }>();
 
 function distinctTtlMs(): number {
-  // Longer TTL on Turso — DISTINCT over large tables burns rows-read quota.
-  return isRemoteLibsql() ? 10 * 60_000 : 30_000;
+  // Long TTL on Turso — repeat clicks must not re-scan the archive.
+  return isRemoteLibsql() ? 30 * 60_000 : 60_000;
+}
+
+function cacheDistinct(cacheKey: string, values: string[]): string[] {
+  distinctCache.set(cacheKey, { at: Date.now(), values });
+  if (distinctCache.size > 400) {
+    const first = distinctCache.keys().next().value;
+    if (first) distinctCache.delete(first);
+  }
+  return values;
+}
+
+/** Cheap symbol list for browse/tree — never DISTINCT-scan option_chains for STOCK. */
+export async function listCatalogSymbols(
+  exchange: string,
+  segment: string
+): Promise<string[]> {
+  await ensureSchema();
+  if (segment === "INDEX") {
+    const set = exchange === "BSE" ? BSE_INDEX_SYMBOLS : NSE_INDEX_SYMBOLS;
+    return [...set].sort();
+  }
+  const cacheKey = `catalog:${exchange}:${segment}`;
+  const hit = distinctCache.get(cacheKey);
+  if (hit && Date.now() - hit.at < distinctTtlMs()) return hit.values;
+
+  const db = getDbClient();
+  const rs = await db.execute({
+    sql: `SELECT symbol AS v FROM archive_catalog WHERE exchange = ? AND segment = ? ORDER BY symbol ASC`,
+    args: [exchange, segment],
+  });
+  const values = rs.rows.map((r) => String(r.v)).filter(Boolean);
+  return cacheDistinct(cacheKey, values);
+}
+
+/** Upsert a small set of symbols (daily sync / catalog seed). */
+export async function upsertCatalogSymbols(
+  pairs: { exchange: string; segment: string; symbol: string }[]
+): Promise<number> {
+  if (pairs.length === 0) return 0;
+  await ensureSchema();
+  const db = getDbClient();
+  const uniq = new Map<string, { exchange: string; segment: string; symbol: string }>();
+  for (const p of pairs) {
+    if (!p.exchange || !p.segment || !p.symbol) continue;
+    uniq.set(`${p.exchange}|${p.segment}|${p.symbol}`, p);
+  }
+  const list = [...uniq.values()];
+  const chunk = 80;
+  for (let i = 0; i < list.length; i += chunk) {
+    const slice = list.slice(i, i + chunk);
+    await withWriteRetry(`catalog ${i / chunk + 1}`, () =>
+      db.batch(
+        slice.map((p) => ({
+          sql: `INSERT INTO archive_catalog (exchange, segment, symbol) VALUES (?, ?, ?)
+                ON CONFLICT(exchange, segment, symbol) DO NOTHING`,
+          args: [p.exchange, p.segment, p.symbol],
+        })),
+        "write"
+      )
+    );
+  }
+  invalidateDistinctCache();
+  return list.length;
+}
+
+/** Replace catalog wholesale (from local DISTINCT — used by push:stats). */
+export async function replaceArchiveCatalog(
+  pairs: { exchange: string; segment: string; symbol: string }[]
+): Promise<number> {
+  await ensureSchema();
+  const db = getDbClient();
+  await db.execute(`DELETE FROM archive_catalog`);
+  return upsertCatalogSymbols(pairs);
 }
 
 export async function distinctValues(
@@ -380,6 +466,44 @@ export async function distinctValues(
     return hit.values;
   }
 
+  // Root-ish lists — never scan option_chains.
+  if (field === "exchange" && !filter.exchange) {
+    return cacheDistinct(cacheKey, ["BSE", "NSE"]);
+  }
+  if (field === "segment" && filter.exchange && !filter.segment) {
+    return cacheDistinct(cacheKey, ["INDEX", "STOCK"]);
+  }
+  if (field === "side" && filter.symbol && !filter.side) {
+    return cacheDistinct(cacheKey, ["CALL", "PUT"]);
+  }
+  // Symbol lists: catalog / hardcoded INDEX (quota-critical path).
+  if (
+    field === "symbol" &&
+    filter.exchange &&
+    filter.segment &&
+    !filter.symbol
+  ) {
+    const values = await listCatalogSymbols(filter.exchange, filter.segment);
+    return cacheDistinct(cacheKey, values);
+  }
+
+  // Narrow DISTINCT only (must include symbol+side for trade dates, etc.)
+  // Refuse wide scans on Turso that would burn quota.
+  if (isRemoteLibsql()) {
+    const wideSymbolScan =
+      field === "symbol" && (!filter.exchange || !filter.segment);
+    const wideDateScan =
+      (field === "tradeDate" || field === "expiryDate") &&
+      !(filter.exchange && filter.segment && filter.symbol && filter.side);
+    if (wideSymbolScan || wideDateScan) {
+      console.warn(
+        `[quota] refused wide DISTINCT ${field} on Turso`,
+        filter
+      );
+      return cacheDistinct(cacheKey, []);
+    }
+  }
+
   const { sql, args } = whereClause(filter);
   const db = getDbClient();
   const rs = await db.execute({
@@ -387,13 +511,7 @@ export async function distinctValues(
     args,
   });
   const values = rs.rows.map((r) => String(r.v)).filter(Boolean);
-  distinctCache.set(cacheKey, { at: Date.now(), values });
-  // Bound cache size
-  if (distinctCache.size > 200) {
-    const first = distinctCache.keys().next().value;
-    if (first) distinctCache.delete(first);
-  }
-  return values;
+  return cacheDistinct(cacheKey, values);
 }
 
 /** Clear distinct + status caches after writes (sync / seed). */
@@ -428,7 +546,7 @@ export async function findChains(
 export async function getArchiveStatus(): Promise<ArchiveStatus> {
   await ensureSchema();
 
-  const memTtl = isRemoteLibsql() ? 5 * 60_000 : 30_000;
+  const memTtl = isRemoteLibsql() ? 10 * 60_000 : 60_000;
   const cached = global._archiveStatusCache;
   if (cached && Date.now() - cached.at < memTtl) {
     return cached.value;

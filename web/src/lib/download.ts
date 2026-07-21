@@ -1,9 +1,12 @@
 import { createRequire } from "module";
 import { PassThrough, Readable } from "stream";
 import type { Archiver } from "archiver";
-import { countChains, findChains } from "./db";
+import { countChains, findChains, isRemoteLibsql } from "./db";
 import { rowsToCsv } from "./storage";
 import type { BrowsePath, OptionChainDoc, OptionRow } from "./types";
+
+/** Max chain files per zip on Turso — larger bundles burn rows-read hard. */
+export const MAX_REMOTE_BUNDLE_DOCS = 400;
 
 const require = createRequire(import.meta.url);
 type ZipArchiveCtor = new (options?: { store?: boolean; zlib?: { level: number } }) => Archiver;
@@ -148,4 +151,24 @@ export async function buildLeafCsv(path: BrowsePath): Promise<{
 
 export async function estimateBundleSize(path: BrowsePath): Promise<number> {
   return countChains(filterFromPath(path));
+}
+
+/** Throw if a remote zip would scan too many docs (Turso quota guard). */
+export async function assertRemoteBundleAllowed(path: BrowsePath): Promise<number> {
+  if (!isRemoteLibsql()) return -1;
+  if (path.expiryDate) return 1;
+  // Require at least symbol — exchange/segment zips are huge.
+  if (!path.symbol) {
+    throw new Error(
+      "On Turso, download a symbol (or narrower) folder — exchange/segment zips exceed the free rows-read budget."
+    );
+  }
+  const n = await estimateBundleSize(path);
+  if (n > MAX_REMOTE_BUNDLE_DOCS) {
+    throw new Error(
+      `This folder has ${n.toLocaleString()} files (limit ${MAX_REMOTE_BUNDLE_DOCS} on Turso). ` +
+        `Narrow to CALL/PUT + a trade date, or a single expiry.`
+    );
+  }
+  return n;
 }

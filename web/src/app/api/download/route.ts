@@ -3,8 +3,10 @@ import { pathFromSegments } from "@/lib/storage";
 import {
   buildLeafCsv,
   estimateBundleSize,
+  assertRemoteBundleAllowed,
   streamCsvZip,
 } from "@/lib/download";
+import { isRemoteLibsql } from "@/lib/db";
 
 function attachmentHeaders(filename: string, contentType: string, cache: string) {
   const encoded = encodeURIComponent(filename);
@@ -86,7 +88,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const fileCount = await estimateBundleSize(browsePath);
+    const fileCount = isRemoteLibsql()
+      ? await assertRemoteBundleAllowed(browsePath)
+      : await estimateBundleSize(browsePath);
     const { stream, filename } = streamCsvZip(browsePath);
     return new NextResponse(stream, {
       headers: {
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Download failed" },
-      { status: 500 }
+      { status: 400 }
     );
   }
 }
