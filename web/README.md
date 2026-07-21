@@ -1,6 +1,6 @@
 # Option Chain Archive
 
-Historical NSE / BSE option-chain desk — browse, download, and auto-sync.
+Historical NSE / BSE option-chain desk — browse, download CSV, and auto-sync to Turso.
 
 ## Quick start (laptop)
 
@@ -28,7 +28,8 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
 4. **Deploy** → wait for build
 5. **Seed** from laptop with same Turso creds:
    ```bash
-   npm run seed:backfill   # full UDiFF history for ALL securities (NSE+BSE)
+   npm run seed:turso:fast   # preferred: parallel copy from local SQLite
+   # or: npm run seed:backfill   # re-download missing days from bhavcopy
    ```
 6. **Verify** — Browse, CSV Zip, Sync Today, cron job (`0 14 * * 1-5` ≈ 19:30 IST)
 
@@ -36,14 +37,14 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
 
 ## What you get
 
-- Left **file tree** (Index/Stock open by default; trade dates in main panel only)
+- Left **file tree** (Index/Stock open by default; trade dates in main panel only) — cached + parallel prefetch for fast expand
 - Right panel scrolls **independently** from sidebar
-- **Compact folder tiles** — Index Options, Stock Options, symbols (title + status, no wasted space)
+- **Compact folder tiles** — Index Options, Stock Options, symbols (title + status)
 - Trade dates & expiry files as **clean scroll lists**
-- Schema **compact cards** for UDiFF columns + stock sectors with larger **NSE | BSE** buttons
+- Schema cards for UDiFF columns + stock sectors with **NSE | BSE** buttons
 - Horizontal **Scroll →** rails on Home + Schema
-- Streaming **CSV Zip** downloads (safe for full INDEX CALL history)
-- ⌘K search · Sync Today · weekday cron
+- **CSV only** — leaf CSV or streaming **CSV Zip** (Excel removed)
+- ⌘K search · Sync Today · weekday cron → **Turso**
 
 ## Hierarchy
 
@@ -62,11 +63,11 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 
 | Area | Behaviour |
 |------|-----------|
-| Tree / browse APIs | Short private cache + distinct-value cache |
-| Sidebar | Does not load hundreds of trade dates |
+| Tree / browse APIs | Private cache 5 min + SWR 10 min |
+| Sidebar | Prefetches exchange/segment nodes; no trade-date flood |
 | CSV Zip | Server streams via archiver; browser native download |
-| Excel Zip | Max 250 files per zip — use CSV for larger folders |
-| Leaf download | Single file + cache headers |
+| Leaf download | Single CSV + cache headers |
+| Daily sync | Cron + Sync Today write to Turso via `LIBSQL_*` |
 
 ## Scripts
 
@@ -76,12 +77,14 @@ Segregation: UDiFF `FinInstrmTp` **IDO → INDEX**, **STO → STOCK**, else **OT
 | `npm run seed N` | Last N sessions |
 | `npm run seed:all` | Full calendar from 2024-01-01 (skip existing) |
 | `npm run seed:backfill` | **Fill gaps** — all securities NSE+BSE to latest |
+| `npm run seed:turso:fast` | Wipe Turso + parallel copy from local SQLite |
+| `npm run check:turso` | Count docs / span on remote Turso |
 | `npm run seed:max` | Wipe → full INDEX + recent STOCK only |
 | `npm run seed:fresh` | Wipe + full re-download all segments |
 | `npm run typecheck` | TypeScript check |
 
 ## Manual sync
 
-- UI: **Sync Today**
+- UI: **Sync Today** (same-origin; writes to configured DB — Turso in prod)
 - API: `POST /api/sync`
 - Cron: `GET /api/cron/daily-sync` with `Authorization: Bearer $CRON_SECRET`

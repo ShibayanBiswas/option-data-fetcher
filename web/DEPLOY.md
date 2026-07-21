@@ -113,7 +113,8 @@ Expect roughly: span **2024-01-01 → latest**, ~800k+ docs, NSE+BSE both popula
 |-------|---------|
 | `/` | KPIs show start/end dates + counts |
 | `/browse` | NSE \| BSE works |
-| **Sync Today** | synced / already_synced / missing (no browser secret) |
+| CSV Zip | Folder downloads as `.zip` of CSVs only (no Excel) |
+| **Sync Today** | synced / already_synced / missing — writes to Turso |
 | Cron curl | see below |
 
 ```bash
@@ -153,8 +154,8 @@ Local SQLite (full history)
         ▼
      Turso (prod)
         │
-        ├── Vercel UI (browse / download / schema)
-        └── Cron 14:00 UTC + Sync Today  (daily updates)
+        ├── Vercel UI (browse / CSV download / schema)
+        └── Cron 14:00 UTC + Sync Today  (daily updates → Turso)
 ```
 
 You are done when: Vercel build is green, KPIs show full span, Sync Today works, cron is scheduled.

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Moon, Sun, Database, RefreshCw, Search } from "lucide-react";
-import { motion } from "framer-motion";
 import { BrandLogo } from "./brand-logo";
 import { useTheme } from "./theme-provider";
 
@@ -33,16 +32,12 @@ export function SiteHeader({
         </Link>
 
         <nav className="brand-nav">
-          <motion.div whileHover={{ y: -1 }} transition={{ type: "spring", stiffness: 400, damping: 24 }}>
-            <Link href="/browse" className="brand-nav-link">
-              Browse
-            </Link>
-          </motion.div>
-          <motion.div whileHover={{ y: -1 }} transition={{ type: "spring", stiffness: 400, damping: 24 }}>
-            <Link href="/schema" className="brand-nav-link brand-nav-link--md">
-              Schema
-            </Link>
-          </motion.div>
+          <Link href="/browse" className="brand-nav-link">
+            Browse
+          </Link>
+          <Link href="/schema" className="brand-nav-link brand-nav-link--md">
+            Schema
+          </Link>
           {onSearch && (
             <button type="button" className="brand-nav-action" onClick={onSearch}>
               <Search className="h-3.5 w-3.5" />
@@ -71,15 +66,10 @@ export function SiteHeader({
           </button>
         </nav>
       </div>
-      <motion.div
-        className="brand-subheader"
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.12 }}
-      >
+      <div className="brand-subheader">
         <Database className="h-3.5 w-3.5 text-[var(--ar-gold)]" />
         <span>NSE · BSE bhavcopy · SQLite / Turso · weekday auto-refresh</span>
-      </motion.div>
+      </div>
     </header>
   );
 }

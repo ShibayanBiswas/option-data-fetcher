@@ -17,7 +17,6 @@ import {
   Folder,
   FolderOpen,
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
 import type { TreeNode } from "@/lib/tree";
 import { sectorForSymbol } from "@/lib/sectors";
 
@@ -101,13 +100,13 @@ function TreeBranch({
             className="archive-tree-chevron"
             onClick={toggle}
           >
-            <motion.span
-              animate={{ rotate: open ? 90 : 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 26 }}
-              className="inline-flex"
+            <span
+              className={`inline-flex transition-transform duration-150 ${
+                open ? "rotate-90" : ""
+              }`}
             >
               <ChevronRight className="h-3.5 w-3.5" />
-            </motion.span>
+            </span>
           </button>
         ) : (
           <span className="inline-flex h-6 w-6 items-center justify-center opacity-45">
@@ -121,7 +120,6 @@ function TreeBranch({
           className="archive-tree-link"
           onClick={() => {
             onNavigate?.();
-            // Auto-open folders only — never auto-open trade-date folders (file leaves inside)
             if (node.hasChildren && node.kind !== "tradeDate" && node.kind !== "expiry") {
               setOpenMap((s) => ({ ...s, [key]: true }));
             }
@@ -138,49 +136,30 @@ function TreeBranch({
         </Link>
       </div>
 
-      <AnimatePresence initial={false}>
-        {open && node.hasChildren && (
-          <motion.div
-            className="ml-3 border-l border-[var(--ar-border)] pl-1"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {loading && (
-              <div
-                className="font-ui py-1.5 text-[11px] text-[var(--ar-subtle)]"
-                style={{ paddingLeft: 22 }}
-              >
-                <motion.span
-                  animate={{ opacity: [0.45, 1, 0.45] }}
-                  transition={{ repeat: Infinity, duration: 1.2 }}
-                >
-                  Loading…
-                </motion.span>
-              </div>
-            )}
-            {children?.map((child, i) => (
-              <motion.div
-                key={nodeKey(child)}
-                initial={{ opacity: 0, x: -4 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: Math.min(i * 0.02, 0.2) }}
-              >
-                <TreeBranch
-                  node={child}
-                  depth={depth + 1}
-                  openMap={openMap}
-                  setOpenMap={setOpenMap}
-                  cache={cache}
-                  ensureChildren={ensureChildren}
-                  onNavigate={onNavigate}
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && node.hasChildren ? (
+        <div className="ml-3 border-l border-[var(--ar-border)] pl-1">
+          {loading ? (
+            <div
+              className="font-ui py-1.5 text-[11px] text-[var(--ar-subtle)]"
+              style={{ paddingLeft: 22 }}
+            >
+              Loading…
+            </div>
+          ) : null}
+          {children?.map((child) => (
+            <TreeBranch
+              key={nodeKey(child)}
+              node={child}
+              depth={depth + 1}
+              openMap={openMap}
+              setOpenMap={setOpenMap}
+              cache={cache}
+              ensureChildren={ensureChildren}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -219,14 +198,15 @@ export function ArchiveSidebar({
           const qs = new URLSearchParams();
           if (treePath) qs.set("path", treePath);
           if (sectorFilter) qs.set("sector", sectorFilter);
-          const res = await fetch(`/api/tree?${qs.toString()}`);
+          const res = await fetch(`/api/tree?${qs.toString()}`, {
+            credentials: "same-origin",
+          });
           if (!res.ok) throw new Error(`Tree HTTP ${res.status}`);
           const json = await res.json();
           const children = (json.children ?? []) as TreeNode[];
           cacheRef.current = { ...cacheRef.current, [key]: children };
           setCache({ ...cacheRef.current });
         } catch {
-          // Cache empty so the sidebar does not spin on "Loading…" forever.
           cacheRef.current = { ...cacheRef.current, [key]: [] };
           setCache({ ...cacheRef.current });
         }
@@ -242,7 +222,7 @@ export function ArchiveSidebar({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/tree")
+    fetch("/api/tree", { credentials: "same-origin" })
       .then((r) => r.json())
       .then((j) => {
         if (cancelled) return;
@@ -270,7 +250,6 @@ export function ArchiveSidebar({
       await ensureChildren("");
       const rootKids = cacheRef.current[cacheKey("")] ?? [];
 
-      // Parallel: open both exchanges + load their segments
       await Promise.all(
         rootKids
           .filter((ex) => ex.kind === "exchange")
@@ -283,14 +262,12 @@ export function ArchiveSidebar({
                 .filter((seg) => seg.kind === "segment")
                 .map(async (seg) => {
                   nextOpen[nodeKey(seg)] = true;
-                  // Prefetch segment children (symbols / sectors) in parallel
                   await ensureChildren(seg.treePath);
                 })
             );
           })
       );
 
-      // Deep path: open through symbol (+ sector) only — never side/tradeDate
       const folderDepth = Math.min(parts.length, 3);
       for (let i = 1; i < folderDepth; i++) {
         const parentPath = parts.slice(0, i).join("/");
@@ -309,10 +286,7 @@ export function ArchiveSidebar({
             ]);
           }
           nextOpen[`${parts[0]}-${parts[1]}-${parts[2]}`] = true;
-          // Prefetch CALL/PUT labels under the symbol (tiny payload)
-          await ensureChildren(
-            `${parts[0]}/${parts[1]}/${parts[2]}`
-          );
+          await ensureChildren(`${parts[0]}/${parts[1]}/${parts[2]}`);
         }
       }
 

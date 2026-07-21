@@ -1,6 +1,6 @@
 # Option Chain Archive
 
-Historical NSE / BSE option-chain desk — browse, download, sync.
+Historical NSE / BSE option-chain desk — browse, download CSV, sync to Turso.
 
 ## Quick start
 
@@ -15,10 +15,11 @@ npm run dev
 Open http://localhost:3000
 
 - **Browse** — file tree + panel; NSE | BSE picker at root; compact folder tiles
-- **Schema** — horizontal card rails (compact columns/sectors); exchange map
+- **Schema** — horizontal card rails; exchange map
 - **Home** — KPI coverage, navigation map, capability/pipeline scroll rows
 - **⌘K / Ctrl+K** — jump search
-- **Sync Today** — latest bhavcopy session
+- **Downloads** — CSV only (single leaf CSV or streaming CSV Zip)
+- **Sync Today** — latest bhavcopy session → Turso (prod) or local SQLite (dev)
 
 ## Docs
 
@@ -32,10 +33,11 @@ Open http://localhost:3000
 1. Import repo on Vercel — **Root Directory = `web`**
 2. Create Turso DB → set `LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`
 3. Set `CRON_SECRET`, `SYNC_SECRET` (Production + Preview)
-4. Deploy → seed Turso once from laptop (`npm run seed:backfill`)
-5. Verify Browse, downloads, Sync Today, cron
+4. Deploy → seed Turso once from laptop (`npm run seed:turso:fast` or `seed:backfill`)
+5. Verify Browse, CSV Zip, Sync Today, cron
 
-Weekday cron: **14:00 UTC (~19:30 IST)** → `/api/cron/daily-sync`
+Weekday cron: **14:00 UTC (~19:30 IST)** → `/api/cron/daily-sync`  
+Writes directly into the same Turso DB used by the app (`LIBSQL_*`).
 
 **Full history:** UDiFF F&O bhavcopy starts **2024-01-01** on NSE and BSE. Use `seed:backfill` (or `seed:fresh`) so INDEX + STOCK + OTHER cover every published session through the latest settle.
 

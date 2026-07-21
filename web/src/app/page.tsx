@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import {
   ArrowRight,
   Database,
@@ -43,7 +42,7 @@ const features = [
     kicker: "02 · Export",
     title: "Zip at every",
     accent: "folder",
-    body: "CSV or Excel zips from any folder. Leaf expiry files download as plain CSV or Excel.",
+    body: "CSV Zip from any folder. Leaf expiry files download as a single CSV.",
     href: "/browse",
   },
   {
@@ -199,12 +198,7 @@ function HomeBody() {
     <>
       <section className="relative overflow-hidden rounded-3xl glass px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-stretch">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="min-w-0"
-          >
+          <div className="min-w-0">
             <h1 className="font-serif text-4xl leading-tight text-[var(--ar-ink)] sm:text-5xl xl:text-6xl">
               Option Chain <span className="shine-text">Archive</span>
             </h1>
@@ -224,20 +218,14 @@ function HomeBody() {
                 Archive coverage
               </a>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            className="hero-quick-grid"
-            initial={{ opacity: 0, x: 16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.12, duration: 0.55 }}
-          >
-            {QUICK_JUMPS.map((q, i) => (
+          <div className="hero-quick-grid">
+            {QUICK_JUMPS.map((q) => (
               <Link
                 key={q.href}
                 href={q.href}
                 className="hero-quick-card no-underline"
-                style={{ animationDelay: `${i * 0.05}s` }}
               >
                 <span className="hero-quick-icon" aria-hidden>
                   <q.icon className="h-4 w-4" />
@@ -246,21 +234,8 @@ function HomeBody() {
                 <span className="hero-quick-body">{q.body}</span>
               </Link>
             ))}
-          </motion.div>
+          </div>
         </div>
-
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(212,178,76,0.25),transparent_70%)]"
-          animate={{ scale: [1, 1.12, 1], opacity: [0.5, 0.85, 0.5] }}
-          transition={{ duration: 8, repeat: Infinity }}
-        />
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-16 right-16 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(122,30,44,0.18),transparent_70%)]"
-          animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }}
-          transition={{ duration: 10, repeat: Infinity }}
-        />
       </section>
 
       <section className="mt-5">

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 
 /** Dual NSE / BSE jump links — avoids hard-coding a single exchange. */
 export function ExchangePairLinks({
@@ -31,13 +30,5 @@ export function ExchangePairLinks({
 }
 
 export function AnimatedScrollCue() {
-  return (
-    <motion.span
-      className="h-scroll-cue"
-      animate={{ x: [0, 6, 0], opacity: [0.45, 1, 0.45] }}
-      transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-    >
-      Scroll →
-    </motion.span>
-  );
+  return <span className="h-scroll-cue">Scroll →</span>;
 }

@@ -1,5 +1,3 @@
-import ExcelJS from "exceljs";
-import JSZip from "jszip";
 import { createRequire } from "module";
 import { PassThrough, Readable } from "stream";
 import type { Archiver } from "archiver";
@@ -21,8 +19,6 @@ if (!ZipArchiveMaybe) {
 const ZipArchive: ZipArchiveCtor = ZipArchiveMaybe;
 
 const PAGE_SIZE = 40;
-/** Soft cap for Excel zips — each workbook is heavy; use CSV Zip for larger sets. */
-const MAX_EXCEL_DOCS = 250;
 
 function filterFromPath(path: BrowsePath) {
   const filter: {
@@ -92,26 +88,6 @@ async function* iterateDocs(
   }
 }
 
-async function docToExcelBuffer(doc: OptionChainDoc): Promise<Buffer> {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Chain");
-  if (doc.rows.length > 0) {
-    const columns = Object.keys(doc.rows[0]);
-    sheet.columns = columns.map((key) => ({ header: key, key, width: 14 }));
-    for (const row of doc.rows) {
-      sheet.addRow(row);
-    }
-    sheet.getRow(1).font = { bold: true, color: { argb: "FF7A1E2C" } };
-    sheet.getRow(1).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFF5F0E6" },
-    };
-  }
-  const xlsx = await workbook.xlsx.writeBuffer();
-  return Buffer.from(xlsx);
-}
-
 /**
  * Stream a CSV zip without holding the full archive in memory.
  * Pages DB reads so large INDEX / CALL history downloads stay stable.
@@ -122,7 +98,6 @@ export function streamCsvZip(path: BrowsePath): {
 } {
   const filename = bundleName(path, "zip");
   const passthrough = new PassThrough();
-  // STORE = no deflate CPU — faster & lower peak memory for CSV
   const archive = new ZipArchive({ store: true });
 
   archive.on("error", (err: Error) => {
@@ -136,7 +111,6 @@ export function streamCsvZip(path: BrowsePath): {
       for await (const doc of iterateDocs(path)) {
         archive.append(rowsToCsv(doc.rows), { name: entryPath(doc) });
         count += 1;
-        // Yield to event loop every page so the process stays responsive
         if (count % PAGE_SIZE === 0) {
           await new Promise((r) => setImmediate(r));
         }
@@ -157,47 +131,6 @@ export function streamCsvZip(path: BrowsePath): {
   return { stream: webStream, filename };
 }
 
-export async function buildExcelZip(path: BrowsePath): Promise<{
-  buffer: Buffer;
-  filename: string;
-}> {
-  const filter = filterFromPath(path);
-  const total = await countChains(filter);
-  if (total > MAX_EXCEL_DOCS) {
-    throw new Error(
-      `Too many files for Excel Zip (${total.toLocaleString()}). Use CSV Zip, or narrow to a symbol / trade date (max ${MAX_EXCEL_DOCS}).`
-    );
-  }
-
-  const docs = await findChains(filter, { sortTradeDateDesc: false });
-  const zip = new JSZip();
-
-  for (let i = 0; i < docs.length; i += 6) {
-    const batch = docs.slice(i, i + 6);
-    const buffers = await Promise.all(batch.map((doc) => docToExcelBuffer(doc)));
-    batch.forEach((doc, idx) => {
-      const name = entryPath(doc).replace(/\.csv$/i, ".xlsx");
-      zip.file(name, buffers[idx]);
-    });
-    await new Promise((r) => setImmediate(r));
-  }
-
-  if (docs.length === 0) {
-    zip.file("README.txt", "No option chain files matched this selection.");
-  }
-
-  const buffer = Buffer.from(
-    await zip.generateAsync({
-      type: "nodebuffer",
-      compression: "STORE",
-    })
-  );
-  return {
-    buffer,
-    filename: bundleName(path, "zip").replace(".zip", "_excel.zip"),
-  };
-}
-
 export async function buildLeafCsv(path: BrowsePath): Promise<{
   buffer: Buffer;
   filename: string;
@@ -210,32 +143,6 @@ export async function buildLeafCsv(path: BrowsePath): Promise<{
     buffer: Buffer.from(csv, "utf8"),
     filename: bundleName(path, "csv"),
     rows,
-  };
-}
-
-export async function buildLeafExcel(path: BrowsePath): Promise<{
-  buffer: Buffer;
-  filename: string;
-}> {
-  const docs = await loadDocs(path);
-  const rows = docs[0]?.rows ?? [];
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Strikes");
-  if (rows.length > 0) {
-    const columns = Object.keys(rows[0]);
-    sheet.columns = columns.map((key) => ({ header: key, key, width: 14 }));
-    for (const row of rows) sheet.addRow(row);
-    sheet.getRow(1).font = { bold: true, color: { argb: "FF7A1E2C" } };
-    sheet.getRow(1).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFF5F0E6" },
-    };
-  }
-  const xlsx = await workbook.xlsx.writeBuffer();
-  return {
-    buffer: Buffer.from(xlsx),
-    filename: bundleName(path, "xlsx"),
   };
 }
 

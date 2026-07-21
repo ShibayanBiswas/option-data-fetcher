@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pathFromSegments } from "@/lib/storage";
 import {
-  buildExcelZip,
   buildLeafCsv,
-  buildLeafExcel,
   estimateBundleSize,
   streamCsvZip,
 } from "@/lib/download";
@@ -28,6 +26,13 @@ export async function GET(request: NextRequest) {
     const format = (sp.get("format") ?? "csv").toLowerCase();
     const mode = (sp.get("mode") ?? "bundle").toLowerCase();
 
+    if (format === "xlsx" || format === "excel") {
+      return NextResponse.json(
+        { error: "Excel downloads are disabled. Use CSV or CSV Zip." },
+        { status: 400 }
+      );
+    }
+
     const segments = pathParam
       .split("/")
       .map((s) => s.trim())
@@ -45,7 +50,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Whole exchange (NSE / BSE only) is too large for one request
     if (segments.length === 1 && mode !== "leaf" && !isLeaf) {
       return NextResponse.json(
         {
@@ -56,7 +60,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Probe: cheap JSON check before starting a large zip download
     if (sp.get("probe") === "1") {
       if (segments.length <= 1 && !isLeaf) {
         return NextResponse.json(
@@ -68,25 +71,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         ok: true,
         files,
-        format,
+        format: "csv",
         path: pathParam,
       });
     }
 
     if (mode === "leaf" || isLeaf) {
-      if (format === "xlsx" || format === "excel") {
-        const { buffer, filename } = await buildLeafExcel(browsePath);
-        return new NextResponse(new Uint8Array(buffer), {
-          headers: {
-            ...attachmentHeaders(
-              filename,
-              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              "private, max-age=3600"
-            ),
-            "Content-Length": String(buffer.length),
-          },
-        });
-      }
       const { buffer, filename } = await buildLeafCsv(browsePath);
       return new NextResponse(new Uint8Array(buffer), {
         headers: {
@@ -96,17 +86,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (format === "xlsx" || format === "excel") {
-      const { buffer, filename } = await buildExcelZip(browsePath);
-      return new NextResponse(new Uint8Array(buffer), {
-        headers: {
-          ...attachmentHeaders(filename, "application/zip", "private, no-store"),
-          "Content-Length": String(buffer.length),
-        },
-      });
-    }
-
-    // CSV Zip — stream so large INDEX/CALL histories do not OOM
     const fileCount = await estimateBundleSize(browsePath);
     const { stream, filename } = streamCsvZip(browsePath);
     return new NextResponse(stream, {

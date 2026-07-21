@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
@@ -43,15 +42,13 @@ function toneClass(tone: FlowNode["tone"]): string {
 
 function FlowNodeCard({
   node,
-  depth,
-  index,
   expanded,
   onToggle,
   stretch = false,
 }: {
   node: FlowNode;
-  depth: number;
-  index: number;
+  depth?: number;
+  index?: number;
   expanded: boolean;
   onToggle: () => void;
   stretch?: boolean;
@@ -59,15 +56,7 @@ function FlowNodeCard({
   const hasKids = Boolean(node.children?.length);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.94, y: 8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{
-        delay: depth * 0.04 + index * 0.03,
-        type: "spring",
-        stiffness: 170,
-        damping: 18,
-      }}
+    <div
       className={`${toneClass(node.tone)} flow-node-shell ${stretch ? "flow-node-shell--stretch" : ""}`}
     >
       {hasKids ? (
@@ -77,9 +66,13 @@ function FlowNodeCard({
           className="flow-node-chevron-btn"
           onClick={onToggle}
         >
-          <motion.span animate={{ rotate: expanded ? 180 : 0 }}>
+          <span
+            className={`inline-flex transition-transform duration-150 ${
+              expanded ? "rotate-180" : ""
+            }`}
+          >
             <ChevronDown className="h-3.5 w-3.5" />
-          </motion.span>
+          </span>
         </button>
       ) : (
         <span className="flow-node-dot" aria-hidden />
@@ -101,101 +94,66 @@ function FlowNodeCard({
           {node.meta ? <span className="flow-node-meta">{node.meta}</span> : null}
         </button>
       )}
-    </motion.div>
+    </div>
   );
 }
 
 function FlowBranch({
   node,
   depth,
-  index,
 }: {
   node: FlowNode;
   depth: number;
-  index: number;
+  index?: number;
 }) {
   const [open, setOpen] = useState(depth < 1);
   const kids = node.children ?? [];
 
   return (
-    <motion.li
-      className="flow-branch"
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.04, type: "spring", stiffness: 160, damping: 18 }}
-    >
+    <li className="flow-branch">
       <FlowNodeCard
         node={node}
-        depth={depth}
-        index={index}
         expanded={open}
         onToggle={() => setOpen((v) => !v)}
       />
-      <AnimatePresence initial={false}>
-        {open && kids.length > 0 ? (
-          <motion.ul
-            key="kids"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.28 }}
-            className="flow-children"
-          >
-            {kids.map((child, i) => (
-              <FlowBranch key={child.id} node={child} depth={depth + 1} index={i} />
-            ))}
-          </motion.ul>
-        ) : null}
-      </AnimatePresence>
-    </motion.li>
+      {open && kids.length > 0 ? (
+        <ul className="flow-children">
+          {kids.map((child) => (
+            <FlowBranch key={child.id} node={child} depth={depth + 1} />
+          ))}
+        </ul>
+      ) : null}
+    </li>
   );
 }
 
-function MapColumn({ node, index }: { node: FlowNode; index: number }) {
+function MapColumn({ node }: { node: FlowNode; index?: number }) {
   const [open, setOpen] = useState(true);
   const kids = node.children ?? [];
 
   return (
-    <motion.div
-      className="flow-map-col"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.06 + index * 0.05, type: "spring", stiffness: 160, damping: 18 }}
-    >
+    <div className="flow-map-col">
       <FlowNodeCard
         node={node}
-        depth={1}
-        index={index}
         expanded={open}
         onToggle={() => setOpen((v) => !v)}
         stretch
       />
-      <AnimatePresence initial={false}>
-        {open && kids.length > 0 ? (
-          <motion.ul
-            key="map-kids"
-            className="flow-map-kids"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22 }}
-          >
-            {kids.map((child, i) => (
-              <li key={child.id} className="flow-map-kid">
-                <FlowNodeCard
-                  node={child}
-                  depth={2}
-                  index={i}
-                  expanded={false}
-                  onToggle={() => undefined}
-                  stretch
-                />
-              </li>
-            ))}
-          </motion.ul>
-        ) : null}
-      </AnimatePresence>
-    </motion.div>
+      {open && kids.length > 0 ? (
+        <ul className="flow-map-kids">
+          {kids.map((child) => (
+            <li key={child.id} className="flow-map-kid">
+              <FlowNodeCard
+                node={child}
+                expanded={false}
+                onToggle={() => undefined}
+                stretch
+              />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
@@ -208,8 +166,6 @@ function FlowMap({ roots }: { roots: FlowNode[] }) {
     <div className="flow-map">
       <FlowNodeCard
         node={root}
-        depth={0}
-        index={0}
         expanded
         onToggle={() => undefined}
         stretch
@@ -221,8 +177,8 @@ function FlowMap({ roots }: { roots: FlowNode[] }) {
             gridTemplateColumns: `repeat(${Math.min(cols.length, 4)}, minmax(0, 1fr))`,
           }}
         >
-          {cols.map((col, i) => (
-            <MapColumn key={col.id} node={col} index={i} />
+          {cols.map((col) => (
+            <MapColumn key={col.id} node={col} />
           ))}
         </div>
       ) : null}
@@ -241,13 +197,7 @@ function PipelineStep({
 }) {
   return (
     <div className="flow-pipe-step">
-      <motion.div
-        initial={{ opacity: 0, x: -16 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay: index * 0.08 }}
-        className="flow-pipe-card"
-      >
+      <div className="flow-pipe-card">
         <span className="flow-pipe-index">{index + 1}</span>
         <div className="min-w-0 flex-1">
           <div className="font-serif text-lg text-[var(--ar-ink)]">{node.label}</div>
@@ -260,16 +210,11 @@ function PipelineStep({
             Open
           </Link>
         ) : null}
-      </motion.div>
+      </div>
       {index < total - 1 ? (
-        <motion.div
-          className="flow-pipe-arrow"
-          aria-hidden
-          animate={{ x: [0, 6, 0], opacity: [0.45, 1, 0.45] }}
-          transition={{ duration: 1.6, repeat: Infinity, delay: index * 0.15 }}
-        >
+        <div className="flow-pipe-arrow" aria-hidden>
           →
-        </motion.div>
+        </div>
       ) : null}
     </div>
   );
@@ -310,8 +255,8 @@ export function DeskFlow({
         <FlowMap roots={roots} />
       ) : (
         <ul className="flow-forest">
-          {roots.map((root, i) => (
-            <FlowBranch key={root.id} node={root} depth={0} index={i} />
+          {roots.map((root) => (
+            <FlowBranch key={root.id} node={root} depth={0} />
           ))}
         </ul>
       )}

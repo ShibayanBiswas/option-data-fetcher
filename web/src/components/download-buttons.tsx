@@ -1,13 +1,12 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
+import { Check, Download, FileText, Loader2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
-function downloadUrl(path: string, format: "csv" | "xlsx", leaf: boolean) {
+function downloadUrl(path: string, leaf: boolean) {
   const params = new URLSearchParams({
     path,
-    format,
+    format: "csv",
     mode: leaf ? "leaf" : "bundle",
   });
   return `/api/download?${params.toString()}`;
@@ -47,11 +46,6 @@ async function saveBlobResponse(res: Response, fallbackName: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
-/**
- * Large zips: let the browser download natively (no JS heap for the whole file).
- * Errors come back as JSON — detect via Content-Type after starting fetch in an iframe-free way:
- * we probe with fetch only for small leaf / excel paths; for CSV zip we use a hidden iframe.
- */
 function startNativeDownload(url: string) {
   const iframe = document.createElement("iframe");
   iframe.style.display = "none";
@@ -73,167 +67,109 @@ export function DownloadButtons({
   path: string;
   leaf?: boolean;
 }) {
-  const [busy, setBusy] = useState<"csv" | "xlsx" | null>(null);
-  const [done, setDone] = useState<"csv" | "xlsx" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const trigger = useCallback(
-    async (format: "csv" | "xlsx") => {
-      abortRef.current?.abort();
-      setBusy(format);
-      setDone(null);
-      setError(null);
-      setHint(null);
-      const url = downloadUrl(path, format, leaf);
-      const fallback =
-        format === "csv"
-          ? leaf
-            ? "chain.csv"
-            : "chain.zip"
-          : leaf
-            ? "chain.xlsx"
-            : "chain_excel.zip";
+  const trigger = useCallback(async () => {
+    abortRef.current?.abort();
+    setBusy(true);
+    setDone(false);
+    setError(null);
+    setHint(null);
+    const url = downloadUrl(path, leaf);
+    const fallback = leaf ? "chain.csv" : "chain.zip";
 
-      try {
-        // Large CSV zip: probe first, then native browser download (no JS heap crash)
-        if (!leaf && format === "csv") {
-          const probe = await fetch(`${url}&probe=1`, {
-            credentials: "same-origin",
-            cache: "no-store",
-          });
-          const probeJson = (await probe.json().catch(() => ({}))) as {
-            ok?: boolean;
-            error?: string;
-            files?: number;
-          };
-          if (!probe.ok || !probeJson.ok) {
-            throw new Error(probeJson.error ?? "Download not available for this folder");
-          }
-          const n = probeJson.files ?? 0;
-          setHint(
-            n > 0
-              ? `Download started — streaming ${n.toLocaleString()} files. Keep this tab open until the browser finishes saving the zip.`
-              : "Download started — keep this tab open until the browser finishes saving the zip."
-          );
-          startNativeDownload(url);
-          // Native iframe download: probe passed; completion is the browser's job.
-          setDone(format);
-          window.setTimeout(() => {
-            setDone(null);
-            setHint(null);
-          }, 5000);
-          return;
-        }
-
-        const controller = new AbortController();
-        abortRef.current = controller;
-        const res = await fetch(url, {
+    try {
+      if (!leaf) {
+        const probe = await fetch(`${url}&probe=1`, {
           credentials: "same-origin",
           cache: "no-store",
-          signal: controller.signal,
         });
-        const ct = res.headers.get("Content-Type") ?? "";
-        if (!res.ok) {
-          if (ct.includes("application/json")) {
-            const json = (await res.json().catch(() => ({}))) as { error?: string };
-            throw new Error(json.error ?? "Download failed");
-          }
-          throw new Error(`Download failed (${res.status})`);
+        const probeJson = (await probe.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+          files?: number;
+        };
+        if (!probe.ok || !probeJson.ok) {
+          throw new Error(probeJson.error ?? "Download not available for this folder");
         }
-        await saveBlobResponse(res, fallback);
-        setDone(format);
-        window.setTimeout(() => setDone(null), 2200);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : "Download failed");
-        window.setTimeout(() => setError(null), 6000);
-      } finally {
-        setBusy(null);
+        const n = probeJson.files ?? 0;
+        setHint(
+          n > 0
+            ? `Download started — streaming ${n.toLocaleString()} CSV files. Keep this tab open until the zip finishes.`
+            : "Download started — keep this tab open until the zip finishes."
+        );
+        startNativeDownload(url);
+        setDone(true);
+        window.setTimeout(() => {
+          setDone(false);
+          setHint(null);
+        }, 5000);
+        return;
       }
-    },
-    [leaf, path]
-  );
 
-  const iconFor = (format: "csv" | "xlsx", isLeaf: boolean) => {
-    if (busy === format) return <Loader2 className="h-3.5 w-3.5 animate-spin" />;
-    if (done === format) return <Check className="h-3.5 w-3.5 download-check-icon" />;
-    if (format === "csv") {
-      return isLeaf ? (
-        <FileText className="h-3.5 w-3.5" />
-      ) : (
-        <Download className="h-3.5 w-3.5" />
-      );
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const res = await fetch(url, {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const ct = res.headers.get("Content-Type") ?? "";
+      if (!res.ok) {
+        if (ct.includes("application/json")) {
+          const json = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(json.error ?? "Download failed");
+        }
+        throw new Error(`Download failed (${res.status})`);
+      }
+      await saveBlobResponse(res, fallback);
+      setDone(true);
+      window.setTimeout(() => setDone(false), 2200);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Download failed");
+      window.setTimeout(() => setError(null), 6000);
+    } finally {
+      setBusy(false);
     }
-    return <FileSpreadsheet className="h-3.5 w-3.5" />;
-  };
+  }, [leaf, path]);
 
   return (
     <div className="download-actions font-ui flex flex-col items-end gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <motion.button
-          type="button"
-          className={`btn-gold inline-flex items-center gap-1.5 text-xs ${
-            done === "csv" ? "download-btn-success" : ""
-          }`}
-          onClick={() => trigger("csv")}
-          disabled={busy !== null}
-          whileHover={busy ? undefined : { scale: 1.02 }}
-          whileTap={busy ? undefined : { scale: 0.98 }}
-        >
-          {iconFor("csv", leaf)}
-          {leaf ? "CSV" : "CSV Zip"}
-        </motion.button>
-        <motion.button
-          type="button"
-          className={`btn-maroon inline-flex items-center gap-1.5 text-xs ${
-            done === "xlsx" ? "download-btn-success" : ""
-          }`}
-          onClick={() => trigger("xlsx")}
-          disabled={busy !== null}
-          whileHover={busy ? undefined : { scale: 1.02 }}
-          whileTap={busy ? undefined : { scale: 0.98 }}
-        >
-          {iconFor("xlsx", leaf)}
-          {leaf ? "Excel" : "Excel Zip"}
-        </motion.button>
-      </div>
-      <AnimatePresence>
-        {busy && (
-          <motion.p
-            key="busy"
-            className="download-hint text-[10px] text-[var(--ar-subtle)]"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {leaf ? "Preparing file…" : "Building zip — please wait…"}
-          </motion.p>
+      <button
+        type="button"
+        className={`btn-gold inline-flex items-center gap-1.5 text-xs ${
+          done ? "download-btn-success" : ""
+        }`}
+        onClick={() => void trigger()}
+        disabled={busy}
+      >
+        {busy ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : done ? (
+          <Check className="h-3.5 w-3.5 download-check-icon" />
+        ) : leaf ? (
+          <FileText className="h-3.5 w-3.5" />
+        ) : (
+          <Download className="h-3.5 w-3.5" />
         )}
-        {hint && !busy && (
-          <motion.p
-            key="hint"
-            className="download-hint text-[10px] text-[var(--ar-subtle)]"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {hint}
-          </motion.p>
-        )}
-        {error && (
-          <motion.p
-            key="error"
-            className="download-hint text-[10px] text-[var(--ar-maroon)]"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {error}
-          </motion.p>
-        )}
-      </AnimatePresence>
+        {leaf ? "Download CSV" : "Download CSV Zip"}
+      </button>
+      {busy ? (
+        <p className="download-hint text-[10px] text-[var(--ar-subtle)]">
+          {leaf ? "Preparing CSV…" : "Building CSV zip — please wait…"}
+        </p>
+      ) : null}
+      {hint && !busy ? (
+        <p className="download-hint text-[10px] text-[var(--ar-subtle)]">{hint}</p>
+      ) : null}
+      {error ? (
+        <p className="download-hint text-[10px] text-[var(--ar-maroon)]">{error}</p>
+      ) : null}
     </div>
   );
 }

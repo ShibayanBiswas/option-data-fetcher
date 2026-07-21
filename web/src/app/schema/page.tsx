@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
   ArrowRight,
   Building2,
@@ -153,12 +152,7 @@ export default function SchemaPage() {
       <div className="space-y-4">
         <section className="relative overflow-hidden rounded-2xl glass px-5 py-5 sm:px-8">
           <div className="relative z-10 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-center">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 120, damping: 16 }}
-              className="min-w-0"
-            >
+            <div className="min-w-0">
               <p className="label-chip">Schema</p>
               <h1 className="mt-1 font-serif text-3xl text-[var(--ar-ink)] sm:text-4xl">
                 Desk <span className="shine-text">taxonomy</span>
@@ -177,13 +171,8 @@ export default function SchemaPage() {
                   Exchange map
                 </a>
               </div>
-            </motion.div>
-            <motion.div
-              className="hero-quick-grid hero-quick-grid--2"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-            >
+            </div>
+            <div className="hero-quick-grid hero-quick-grid--2">
               <Link href="/browse/NSE" className="hero-quick-card no-underline">
                 <span className="hero-quick-icon" aria-hidden>
                   <Building2 className="h-4 w-4" />
@@ -198,20 +187,8 @@ export default function SchemaPage() {
                 <span className="hero-quick-title">BSE</span>
                 <span className="hero-quick-body">Index · Stock · Other</span>
               </Link>
-            </motion.div>
+            </div>
           </div>
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(212,178,76,0.26),transparent_70%)]"
-            animate={{ scale: [1, 1.14, 1], opacity: [0.35, 0.8, 0.35] }}
-            transition={{ duration: 6.5, repeat: Infinity }}
-          />
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-12 left-10 h-36 w-36 rounded-full bg-[radial-gradient(circle,rgba(122,30,44,0.16),transparent_70%)]"
-            animate={{ scale: [1.1, 1, 1.1], opacity: [0.3, 0.65, 0.3] }}
-            transition={{ duration: 8, repeat: Infinity }}
-          />
         </section>
 
         <HScrollSection
@@ -226,7 +203,6 @@ export default function SchemaPage() {
               size="md"
               accent="mixed"
               href={lvl.href}
-              delay={i * 0.03}
             >
               <div className="desk-card-top">
                 <span className="desk-card-kicker">Level {i + 1}</span>
@@ -252,7 +228,6 @@ export default function SchemaPage() {
               size="md"
               accent="mixed"
               href={"href" in c ? c.href : undefined}
-              delay={i * 0.04}
               footer={
                 "pathSuffix" in c && c.pathSuffix ? (
                   <ExchangePairLinks pathSuffix={c.pathSuffix} size="md" />
@@ -282,7 +257,6 @@ export default function SchemaPage() {
               size="md"
               accent="mixed"
               href={c.href}
-              delay={i * 0.04}
             >
               <div className="desk-card-top">
                 <span className="desk-card-kicker">Stage {c.n}</span>
@@ -316,7 +290,6 @@ export default function SchemaPage() {
               key={col}
               size="xs"
               accent="mixed"
-              delay={Math.min(i * 0.012, 0.25)}
             >
               <p className="desk-card-mono desk-card-mono--compact">{col}</p>
             </HScrollCard>
@@ -335,7 +308,6 @@ export default function SchemaPage() {
               key={sector}
               size="xs"
               accent="mixed"
-              delay={Math.min(i * 0.015, 0.25)}
               footer={
                 <ExchangePairLinks
                   pathSuffix="STOCK"
