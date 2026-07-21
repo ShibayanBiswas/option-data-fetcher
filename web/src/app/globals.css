@@ -4,6 +4,7 @@
   color-scheme: light;
   --font-serif: "Times New Roman", Times, Georgia, serif;
   --font-sans: "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   --ar-gold: #d4b24c;
   --ar-gold-light: #e5cf94;
   --ar-gold-dark: #b8860b;
@@ -665,22 +666,27 @@ html.dark .brand-logo--dark {
   color: var(--ar-gold-dark);
 }
 
-.kpi-band-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.kpi-band-rail {
+  display: flex;
+  align-items: stretch;
   gap: 0.75rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2rem 0.15rem 0.55rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
 }
 
-@media (min-width: 640px) {
-  .kpi-band-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1280px) {
-  .kpi-band-grid {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
+.kpi-band-card.sexy-card,
+.kpi-band-rail .kpi-band-card {
+  flex: 0 0 13.25rem;
+  width: 13.25rem;
+  min-width: 13.25rem;
+  max-width: 13.25rem;
+  scroll-snap-align: start;
+  box-sizing: border-box;
 }
 
 .kpi-card {
@@ -697,24 +703,29 @@ html.dark .brand-logo--dark {
 
 .kpi-card-label {
   font-family: var(--font-sans);
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ar-subtle);
 }
 
 .kpi-card-value {
-  margin-top: 0.35rem;
-  font-family: var(--font-sans);
-  font-size: clamp(1rem, 1.45vw, 1.32rem);
-  font-weight: 800;
-  line-height: 1.15;
-  background: linear-gradient(135deg, var(--ar-maroon), var(--ar-gold));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  word-break: break-word;
+  margin-top: 0.45rem;
+  font-family: var(--font-data), ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ar-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.dark .kpi-card-value {
+  color: var(--ar-gold-light);
 }
 
 .dropdown-panel {

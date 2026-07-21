@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
+
+const dataFont = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-data",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Option Chain Archive",
@@ -17,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="light" suppressHydrationWarning>
+    <html lang="en" className={`light ${dataFont.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

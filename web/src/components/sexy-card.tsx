@@ -44,9 +44,11 @@ export function SexyKpi({
   delay?: number;
 }) {
   return (
-    <SexyCard className="!p-4">
+    <SexyCard className="kpi-band-card !p-3.5">
       <div className="kpi-card-label">{label}</div>
-      <div className="kpi-card-value">{value}</div>
+      <div className="kpi-card-value" title={value}>
+        {value}
+      </div>
     </SexyCard>
   );
 }

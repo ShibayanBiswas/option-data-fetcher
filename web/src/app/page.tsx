@@ -17,6 +17,8 @@ import { AppShell } from "@/components/app-shell";
 import { DeskFlow, type FlowNode } from "@/components/desk-flow";
 import { HScrollCard, HScrollSection } from "@/components/h-scroll";
 import { SexyKpi } from "@/components/sexy-card";
+import { AnimatedScrollCue } from "@/components/exchange-pair-links";
+import { KpiBandRail } from "@/components/kpi-band-rail";
 import {
   ARCHIVE_UPDATED_EVENT,
   fetchArchiveStatus,
@@ -277,46 +279,44 @@ function HomeBody() {
       </section>
 
       <section id="coverage" className="mt-5 scroll-mt-4">
-        <div className="mb-3 flex items-end justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="label-chip">Live archive</p>
             <h2 className="font-serif text-2xl text-[var(--ar-ink)] sm:text-3xl">
               Coverage and depth
             </h2>
           </div>
-          <Link href="/browse" className="font-ui text-sm text-[var(--ar-gold)] no-underline">
-            Browse data
-          </Link>
+          <div className="flex items-center gap-3">
+            <AnimatedScrollCue />
+            <Link href="/browse" className="font-ui text-sm text-[var(--ar-gold)] no-underline">
+              Browse data
+            </Link>
+          </div>
         </div>
-        <div className="kpi-band-grid">
-          <SexyKpi label="Start Date" value={status?.earliestTradeDate ?? "—"} delay={0.02} />
-          <SexyKpi label="End Date" value={status?.latestTradeDate ?? "—"} delay={0.05} />
+        <KpiBandRail>
+          <SexyKpi label="Start Date" value={status?.earliestTradeDate ?? "—"} />
+          <SexyKpi label="End Date" value={status?.latestTradeDate ?? "—"} />
           <SexyKpi
             label="Trading days"
             value={String(status?.tradingDays ?? "—")}
-            delay={0.08}
           />
           <SexyKpi
             label="Chain files"
             value={(status?.totalDocuments ?? 0).toLocaleString()}
-            delay={0.11}
           />
           <SexyKpi
             label="Underlyings"
             value={String(status?.symbolCount ?? "—")}
-            delay={0.14}
           />
           <SexyKpi
             label="Index files"
             value={(status?.segments?.INDEX ?? 0).toLocaleString()}
-            delay={0.17}
           />
           <SexyKpi
             label="Stock files"
             value={(status?.segments?.STOCK ?? 0).toLocaleString()}
-            delay={0.2}
           />
-        </div>
+        </KpiBandRail>
         <p className="mt-3 font-ui text-xs text-[var(--ar-subtle)]">
           UDiFF F&amp;O bhavcopy is archived from 2024-01-01 (NSE &amp; BSE format
           start) through the latest settled session. Use Sync Today after ~18:30 IST,

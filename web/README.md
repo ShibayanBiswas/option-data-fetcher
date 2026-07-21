@@ -47,7 +47,7 @@ Leave `LIBSQL_*` empty in `.env.local` to use local SQLite at `data/option_chain
 - Schema rails + exchange map with NSE | BSE jumps
 - **CSV only** — leaf CSV or streaming CSV Zip
 - ⌘K search · Sync Today · quiet IST-day catch-up · weekday cron → **Turso**
-- Live End Date in header; KPIs and calendars soft-refresh after sync (no hard reload)
+- Live End Date in header; KPI coverage band scrolls horizontally (IBM Plex Mono figures); calendars soft-refresh after sync
 
 ## Hierarchy
 

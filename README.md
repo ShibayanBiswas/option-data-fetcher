@@ -18,7 +18,7 @@ Open http://localhost:3000
 
 - **Browse** — file tree + panel; NSE | BSE picker; compact folder tiles
 - **Schema** — horizontal card rails; exchange map
-- **Home** — live KPI coverage, navigation map, pipeline rows
+- **Home** — live KPI coverage rail (horizontal scroll), navigation map, pipeline rows
 - **⌘K / Ctrl+K** — jump search
 - **Theme** — light / dark (persisted; no flash on reload)
 - **Downloads** — CSV only (leaf CSV or streaming CSV Zip)
