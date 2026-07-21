@@ -226,7 +226,7 @@ function HomeBody() {
   }, []);
 
   return (
-    <>
+    <div className="home-stack">
       <section className="relative overflow-hidden rounded-3xl glass px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-stretch">
           <div className="min-w-0">
@@ -269,7 +269,7 @@ function HomeBody() {
         </div>
       </section>
 
-      <section className="mt-5">
+      <section>
         <DeskFlow
           title="Desk navigation map"
           subtitle="Full-width jump map — every node opens Browse, Schema, or a section below. Sidebar mirrors the archive tree."
@@ -278,11 +278,11 @@ function HomeBody() {
         />
       </section>
 
-      <section id="coverage" className="mt-5 scroll-mt-4">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+      <section id="coverage" className="scroll-mt-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="label-chip">Live archive</p>
-            <h2 className="font-serif text-2xl text-[var(--ar-ink)] sm:text-3xl">
+            <h2 className="mt-1 font-serif text-2xl text-[var(--ar-ink)] sm:text-3xl">
               Coverage and depth
             </h2>
           </div>
@@ -317,15 +317,9 @@ function HomeBody() {
             value={(status?.segments?.STOCK ?? 0).toLocaleString()}
           />
         </KpiBandRail>
-        <p className="mt-3 font-ui text-xs text-[var(--ar-subtle)]">
-          UDiFF F&amp;O bhavcopy is archived from 2024-01-01 (NSE &amp; BSE format
-          start) through the latest settled session. Use Sync Today after ~18:30 IST,
-          or run <code className="text-[var(--ar-ink)]">npm run seed:backfill</code>{" "}
-          to fill any calendar gaps.
-        </p>
       </section>
 
-      <div className="mt-5">
+      <section>
         <HScrollSection
           eyebrow="Capabilities"
           title="What the desk does"
@@ -348,9 +342,9 @@ function HomeBody() {
             </HScrollCard>
           ))}
         </HScrollSection>
-      </div>
+      </section>
 
-      <section id="pipeline" className="mt-4 scroll-mt-4">
+      <section id="pipeline" className="scroll-mt-6">
         <HScrollSection
           eyebrow="Pipeline"
           title="How the desk builds the book"
@@ -371,7 +365,7 @@ function HomeBody() {
             </HScrollCard>
           ))}
         </HScrollSection>
-        <div className="mt-3 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-wrap gap-3">
           <Link href="/browse" className="btn-maroon inline-flex items-center gap-2 no-underline">
             Browse NSE and BSE <ArrowRight className="h-4 w-4" />
           </Link>
@@ -380,7 +374,7 @@ function HomeBody() {
           </Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }
 

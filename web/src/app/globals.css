@@ -1590,6 +1590,29 @@ html.dark .date-range-field input[type="date"]::-webkit-calendar-picker-indicato
   }
 }
 
+/* —— Home page section rhythm —— */
+.home-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  padding-bottom: 1.75rem;
+}
+
+@media (min-width: 1024px) {
+  .home-stack {
+    gap: 2.75rem;
+    padding-bottom: 2.25rem;
+  }
+}
+
+.home-stack .h-scroll-section {
+  margin: 0;
+}
+
+.home-stack .flow-stage {
+  margin: 0;
+}
+
 /* —— Horizontal scroll card rails —— */
 .h-scroll-section {
   min-width: 0;
