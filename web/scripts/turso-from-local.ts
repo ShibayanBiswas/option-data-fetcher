@@ -9,7 +9,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { createClient, type Client } from "@libsql/client";
+import { createClient, type Client, type InArgs } from "@libsql/client";
 import {
   closeDb,
   dropAllChains,
@@ -42,15 +42,15 @@ const INSERT_SQL = `
 `;
 
 type ChainRow = {
-  exchange: unknown;
-  segment: unknown;
-  symbol: unknown;
-  side: unknown;
-  trade_date: unknown;
-  expiry_date: unknown;
-  row_count: unknown;
-  rows_json: unknown;
-  updated_at: unknown;
+  exchange: string | number | null;
+  segment: string | number | null;
+  symbol: string | number | null;
+  side: string | number | null;
+  trade_date: string | number | null;
+  expiry_date: string | number | null;
+  row_count: string | number | null;
+  rows_json: string | number | null;
+  updated_at: string | number | null;
 };
 
 function remoteClient(): Client {
@@ -82,7 +82,7 @@ async function writeBatch(client: Client, rows: ChainRow[]): Promise<void> {
   if (rows.length === 0) return;
   const statements = rows.map((row) => ({
     sql: INSERT_SQL,
-      args: [
+    args: [
       row.exchange,
       row.segment,
       row.symbol,
@@ -92,7 +92,7 @@ async function writeBatch(client: Client, rows: ChainRow[]): Promise<void> {
       row.row_count,
       row.rows_json,
       row.updated_at,
-    ],
+    ] as InArgs,
   }));
   await withRetry("batch", () => client.batch(statements, "write"));
 }
