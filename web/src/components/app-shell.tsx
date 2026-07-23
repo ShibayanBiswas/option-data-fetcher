@@ -135,16 +135,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Quiet daily catch-up so End Date / calendars stay current.
-  // Turso-safe: only POST sync if KPI says we're behind latest weekday (1-row read via GET).
+  // Quiet catch-up: only POST when archive is behind the latest ready weekday.
+  // Cron remains the primary daily writer — this is a light desk fallback.
   useEffect(() => {
     const key = "oca:auto-sync-day";
     const day = istDayKey();
     try {
       if (sessionStorage.getItem(key) === day) return;
-      sessionStorage.setItem(key, day);
     } catch {
-      /* private mode — still attempt once this mount */
+      /* private mode */
     }
 
     let cancelled = false;
@@ -153,13 +152,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         const statusRes = await fetch("/api/sync", { credentials: "same-origin" });
         const statusJson = (await statusRes.json().catch(() => ({}))) as {
           latestTradeDate?: string | null;
+          readyThrough?: string | null;
+          totalDocuments?: number;
           quota?: boolean;
         };
-        if (cancelled || statusRes.status === 503 || statusJson.quota) return;
+        if (cancelled || statusRes.status === 503 || statusJson.quota) {
+          try {
+            sessionStorage.setItem(key, day);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
 
-        // Avoid write-heavy sync when already current (saves Turso rows written).
         const latest = statusJson.latestTradeDate;
-        if (latest && latest >= day) return;
+        const ready = statusJson.readyThrough || day;
+        // No stats / empty archive — do not hammer writes; wait for cron / Sync Today.
+        if (!latest || !statusJson.totalDocuments) {
+          try {
+            sessionStorage.setItem(key, day);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
+        // Already at or past the latest publishable session.
+        if (latest >= ready) {
+          try {
+            sessionStorage.setItem(key, day);
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
 
         const res = await fetch("/api/sync", {
           method: "POST",
@@ -174,6 +199,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           error?: string;
         };
         if (cancelled) return;
+        try {
+          sessionStorage.setItem(key, day);
+        } catch {
+          /* ignore */
+        }
         if (res.status === 503 || json.quota) return;
         const wrote =
           json.status === "synced" || json.status === "partial";

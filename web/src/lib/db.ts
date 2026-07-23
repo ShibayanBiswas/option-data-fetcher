@@ -107,46 +107,73 @@ export function isQuotaError(err: unknown): boolean {
 }
 
 export function isRemoteLibsql(): boolean {
-  const url =
-    process.env.LIBSQL_URL?.trim() ||
-    process.env.TURSO_DATABASE_URL?.trim() ||
-    process.env.SQLITE_URL?.trim() ||
-    "";
+  const { url } = resolveDbUrl();
   return url.startsWith("libsql://") || url.startsWith("https://");
 }
 
+/**
+ * Resolve DB target.
+ * - On Vercel (or USE_TURSO=1): Turso LIBSQL_URL
+ * - On laptop: prefer SQLITE_URL=file:… so desk work does not burn Turso quota
+ * - Turso CLI scripts set USE_TURSO=1
+ */
 function resolveDbUrl(): { url: string; authToken?: string } {
-  const remote =
+  const libsql =
     process.env.LIBSQL_URL?.trim() ||
     process.env.TURSO_DATABASE_URL?.trim() ||
-    process.env.SQLITE_URL?.trim();
-  if (remote && (remote.startsWith("libsql://") || remote.startsWith("https://"))) {
+    "";
+  const sqlite = process.env.SQLITE_URL?.trim() || "";
+  const forceTurso =
+    process.env.USE_TURSO === "1" ||
+    process.env.USE_TURSO === "true" ||
+    process.env.VERCEL === "1";
+
+  const remoteCandidate =
+    libsql.startsWith("libsql://") || libsql.startsWith("https://")
+      ? libsql
+      : sqlite.startsWith("libsql://") || sqlite.startsWith("https://")
+        ? sqlite
+        : "";
+
+  const fileCandidate =
+    sqlite.startsWith("file:") ||
+    sqlite.startsWith("/") ||
+    sqlite.startsWith("./") ||
+    sqlite.startsWith("../")
+      ? sqlite
+      : "";
+
+  if (forceTurso && remoteCandidate) {
     return {
-      url: remote,
+      url: remoteCandidate,
       authToken:
         process.env.LIBSQL_AUTH_TOKEN?.trim() ||
         process.env.TURSO_AUTH_TOKEN?.trim(),
     };
   }
-  if (remote?.startsWith("file:")) {
-    return { url: remote };
-  }
-  // Absolute or relative filesystem paths (without file: prefix)
-  if (remote && (remote.startsWith("/") || remote.startsWith("./") || remote.startsWith("../"))) {
-    const abs = path.isAbsolute(remote) ? remote : path.join(process.cwd(), remote);
+
+  if (fileCandidate) {
+    if (fileCandidate.startsWith("file:")) return { url: fileCandidate };
+    const abs = path.isAbsolute(fileCandidate)
+      ? fileCandidate
+      : path.join(process.cwd(), fileCandidate);
     const dir = path.dirname(abs);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     return { url: `file:${abs}` };
   }
 
-  const dataDir = path.join(process.cwd(), "data");
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+  if (remoteCandidate) {
+    return {
+      url: remoteCandidate,
+      authToken:
+        process.env.LIBSQL_AUTH_TOKEN?.trim() ||
+        process.env.TURSO_AUTH_TOKEN?.trim(),
+    };
   }
-  const filePath = path.join(dataDir, "option_chain.db");
-  return { url: `file:${filePath}` };
+
+  const dataDir = path.join(process.cwd(), "data");
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  return { url: `file:${path.join(dataDir, "option_chain.db")}` };
 }
 
 export function getDbClient(): Client {
@@ -168,6 +195,19 @@ export function getDbClient(): Client {
 export async function ensureSchema(): Promise<void> {
   if (global._libsqlSchemaReady) return;
   const db = getDbClient();
+
+  // Turso cold-start: skip DDL writes when tables already exist (saves rows-written).
+  if (isRemoteLibsql()) {
+    try {
+      await db.execute(`SELECT 1 AS ok FROM archive_stats WHERE id = 1 LIMIT 1`);
+      await db.execute(`SELECT 1 AS ok FROM archive_catalog LIMIT 1`);
+      await db.execute(`SELECT 1 AS ok FROM option_chains LIMIT 1`);
+      global._libsqlSchemaReady = true;
+      return;
+    } catch {
+      /* fall through to CREATE IF NOT EXISTS */
+    }
+  }
   await db.execute(`
     CREATE TABLE IF NOT EXISTS option_chains (
       exchange TEXT NOT NULL,
@@ -307,9 +347,7 @@ export async function upsertChainDocs(docs: OptionChainDoc[]): Promise<number> {
   if (docs.length === 0) return 0;
   await ensureSchema();
   const db = getDbClient();
-  const remote =
-    process.env.LIBSQL_URL?.startsWith("libsql://") ||
-    process.env.LIBSQL_URL?.startsWith("https://");
+  const remote = isRemoteLibsql();
 
   const chunkSize = remote
     ? Math.max(20, Number(process.env.TURSO_BATCH ?? 60))
@@ -400,6 +438,12 @@ export async function listCatalogSymbols(
     args: [exchange, segment],
   });
   const values = rs.rows.map((r) => String(r.v)).filter(Boolean);
+  if (values.length === 0 && isRemoteLibsql()) {
+    throw new Error(
+      `Symbol catalog empty for ${exchange}/${segment}. ` +
+        `Run: USE_TURSO=1 npm run push:stats  (computes from local DB, writes catalog to Turso).`
+    );
+  }
   return cacheDistinct(cacheKey, values);
 }
 
@@ -753,6 +797,7 @@ export async function dropAllChains(): Promise<void> {
   const db = getDbClient();
   await db.execute(`DELETE FROM option_chains`);
   await db.execute(`DELETE FROM archive_stats`);
+  await db.execute(`DELETE FROM archive_catalog`);
   invalidateDistinctCache();
 }
 

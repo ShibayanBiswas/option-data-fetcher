@@ -1,4 +1,4 @@
-import { distinctValues, findChains } from "./db";
+import { distinctValues, findChains, isRemoteLibsql } from "./db";
 import { hrefForPath, readLocalChain } from "./storage";
 import { PREFERRED_COLUMNS, SEGMENT_LABELS } from "./constants";
 import { groupSymbolsBySector, SECTORS, sectorForSymbol } from "./sectors";
@@ -221,7 +221,7 @@ export async function browse(
       sectorGroups,
       activeSector,
       breadcrumbs: crumbs,
-      canDownloadBundle: true,
+      canDownloadBundle: false,
       canDownloadLeaf: false,
     };
   }
@@ -245,7 +245,8 @@ export async function browse(
       subtitle: `Browse CALL and PUT chains for ${path.symbol}.`,
       children,
       breadcrumbs: crumbs,
-      canDownloadBundle: true,
+      // Turso: require CALL/PUT before zip (avoids huge COUNT)
+      canDownloadBundle: !isRemoteLibsql(),
       canDownloadLeaf: false,
     };
   }

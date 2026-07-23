@@ -157,17 +157,22 @@ export async function estimateBundleSize(path: BrowsePath): Promise<number> {
 export async function assertRemoteBundleAllowed(path: BrowsePath): Promise<number> {
   if (!isRemoteLibsql()) return -1;
   if (path.expiryDate) return 1;
-  // Require at least symbol — exchange/segment zips are huge.
+  // Path-shape guards first — no COUNT on huge folders.
   if (!path.symbol) {
     throw new Error(
       "On Turso, download a symbol (or narrower) folder — exchange/segment zips exceed the free rows-read budget."
+    );
+  }
+  if (!path.side) {
+    throw new Error(
+      "On Turso, pick CALL or PUT before downloading — a full symbol zip is too large for the rows-read budget."
     );
   }
   const n = await estimateBundleSize(path);
   if (n > MAX_REMOTE_BUNDLE_DOCS) {
     throw new Error(
       `This folder has ${n.toLocaleString()} files (limit ${MAX_REMOTE_BUNDLE_DOCS} on Turso). ` +
-        `Narrow to CALL/PUT + a trade date, or a single expiry.`
+        `Narrow to a trade date, or a single expiry.`
     );
   }
   return n;

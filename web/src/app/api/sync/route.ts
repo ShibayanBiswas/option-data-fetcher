@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   fetchTradingDates,
+  latestWeekday,
   syncLatestAvailable,
   syncTradeDate,
 } from "@/lib/pipeline";
@@ -8,6 +9,7 @@ import {
   ensureSchema,
   formatDbError,
   getArchiveStatus,
+  isQuotaError,
   isQuotaOrAuthError,
 } from "@/lib/db";
 
@@ -57,10 +59,12 @@ export async function GET() {
   try {
     await ensureSchema();
     const status = await getArchiveStatus();
+    const readyThrough = latestWeekday();
     return NextResponse.json(
       {
         ok: true,
         ...status,
+        readyThrough,
       },
       {
         headers: {
@@ -71,11 +75,13 @@ export async function GET() {
     );
   } catch (err) {
     const message = formatDbError(err);
+    const quota = isQuotaError(err);
     return NextResponse.json(
       {
         ok: false,
         error: message,
-        quota: isQuotaOrAuthError(err),
+        quota,
+        auth: isQuotaOrAuthError(err) && !quota,
       },
       { status: isQuotaOrAuthError(err) ? 503 : 500 }
     );
@@ -130,10 +136,12 @@ export async function POST(request: NextRequest) {
       status: result.status === "failed" ? 500 : result.ok ? 200 : 207,
     });
   } catch (err) {
+    const quota = isQuotaError(err);
     return NextResponse.json(
       {
         error: formatDbError(err),
-        quota: isQuotaOrAuthError(err),
+        quota,
+        auth: isQuotaOrAuthError(err) && !quota,
       },
       { status: isQuotaOrAuthError(err) ? 503 : 500 }
     );

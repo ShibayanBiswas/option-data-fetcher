@@ -15,12 +15,8 @@ function authorized(request: NextRequest): boolean {
 
   const auth = request.headers.get("authorization");
   const headerSecret = request.headers.get("x-cron-secret");
-  const querySecret = request.nextUrl.searchParams.get("secret");
-  return (
-    auth === `Bearer ${secret}` ||
-    headerSecret === secret ||
-    querySecret === secret
-  );
+  // Prefer Bearer / header — avoid ?secret= in access logs.
+  return auth === `Bearer ${secret}` || headerSecret === secret;
 }
 
 export async function GET(request: NextRequest) {

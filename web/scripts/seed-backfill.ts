@@ -1,13 +1,13 @@
 /**
- * Backfill every UDiFF session from 2024-01-01 through the latest ready
- * weekday — INDEX + STOCK + OTHER for NSE and BSE.
+ * Backfill archive sessions from ARCHIVE_EPOCH through the latest ready weekday.
  *
- * Skips dates already fully present (both exchanges). Force-resyncs dates
- * that have only one exchange so BSE/NSE stay aligned with bhavcopy.
+ * Default target: local file SQLite (SQLITE_URL=file:…).
+ * Refuses Turso unless --allow-turso (wide day scans burn rows-read).
  *
  * Usage:
  *   npx tsx --env-file=.env.local scripts/seed-backfill.ts
  *   npx tsx --env-file=.env.local scripts/seed-backfill.ts --force-all
+ *   USE_TURSO=1 npx tsx --env-file=.env.local scripts/seed-backfill.ts --allow-turso
  */
 import {
   fetchTradingDates,
@@ -17,21 +17,37 @@ import {
 import {
   closeDb,
   countChains,
-  distinctValues,
   getArchiveStatus,
   getDbClient,
+  isRemoteLibsql,
 } from "../src/lib/db";
 import { ARCHIVE_EPOCH } from "../src/lib/constants";
 
 async function exchangeDays(exchange: "NSE" | "BSE"): Promise<Set<string>> {
-  const days = await distinctValues("tradeDate", { exchange });
-  return new Set(days);
+  const db = getDbClient();
+  // Indexed range scan — do NOT use browse distinctValues (refuses wide DISTINCT on Turso).
+  const rs = await db.execute({
+    sql: `SELECT DISTINCT trade_date AS d FROM option_chains
+          WHERE exchange = ? AND trade_date >= ?
+          ORDER BY d`,
+    args: [exchange, ARCHIVE_EPOCH],
+  });
+  return new Set(rs.rows.map((r) => String(r.d)));
 }
 
 async function main() {
   const forceAll = process.argv.includes("--force-all");
+  const allowTurso = process.argv.includes("--allow-turso");
 
-  console.log(`UDiFF epoch: ${ARCHIVE_EPOCH}`);
+  if (isRemoteLibsql() && !allowTurso) {
+    throw new Error(
+      "Refusing to backfill against Turso (would scan every session). " +
+        "Run against local SQLITE_URL=file:… or pass --allow-turso with USE_TURSO=1."
+    );
+  }
+
+  console.log(`Archive epoch: ${ARCHIVE_EPOCH}`);
+  console.log("Target remote:", isRemoteLibsql());
   console.log("Fetching trading calendar (epoch → today)…");
   const dates = await fetchTradingDates();
   const cutoff = latestWeekday();

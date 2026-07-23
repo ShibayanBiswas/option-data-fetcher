@@ -91,18 +91,16 @@ Only use `npm run seed:turso:fast` later for small incremental repairs (defaults
 
 ---
 
-## Rate-limit / quota protections (built in)
+## Quota-safe operation (Turso free tier)
 
-| Protection | What it does |
-|------------|----------------|
-| `archive_stats` one-row cache | Home KPIs = 1 row read, not COUNT(*) on 819k |
-| No remote full scan on missing stats | Returns zeros until `push:stats` |
-| In-memory status / distinct caches | Longer TTL on Turso (minutes) |
-| Upload defaults `WORKERS=2` `BATCH=40` | Fewer concurrent Turso writes |
-| Upload retries with long backoff on 429/quota | Survives transient rate limits |
-| Vercel `Cache-Control` on browse/tree | Cuts repeat API hits |
+| Do | Don't |
+|----|--------|
+| Browse normally (catalog + 1-row KPIs) | Zip whole STOCK / exchange folders |
+| Weekday Vercel cron `/api/cron/daily-sync` | `seed:backfill` against Turso without `--allow-turso` |
+| `USE_TURSO=1 npm run push:stats` from laptop | Full-table COUNT/DISTINCT audits on Turso |
+| Keep `CRON_SECRET` set on Vercel | Re-upload the full DB repeatedly |
 
-Still avoid: running `refreshArchiveStats` / heavy audits against Turso on free tier.
+Laptop `.env.local` keeps `SQLITE_URL=file:…` for desk work; Vercel uses Turso via `VERCEL=1`. Turso CLI scripts set `USE_TURSO=1`.
 
 ---
 

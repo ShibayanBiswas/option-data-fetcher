@@ -69,7 +69,10 @@ export async function GET(request: NextRequest) {
           { status: 400 }
         );
       }
-      const files = await estimateBundleSize(browsePath);
+      // Turso: enforce path caps BEFORE any COUNT(*) (segment probes used to burn quota).
+      const files = isRemoteLibsql()
+        ? await assertRemoteBundleAllowed(browsePath)
+        : await estimateBundleSize(browsePath);
       return NextResponse.json({
         ok: true,
         files,
